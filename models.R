@@ -91,7 +91,7 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
   # x_{l,t} \sim Normal(\mu_{l,t} + \delta_{l} x_{l,t-1},  \sigma_{process})\\
   # \mu_{l,t} = \beta_l + f_{global,t}(week) + f_{l,t}(week) \\
   # \beta_l \sim Normal(\beta_{global}, \sigma_{count}) \\
-  # \beta_{global} \sim Normal(log(avgcount), 1) \\
+  # \beta_{global} \sim Normal(logit(avgprop), 1) \\
   # \sigma_{count} \sim exp(0.33) \\
   # \delta_l \sim Normal(0.5, 0.25) \\
   # \sigma \sim exp(1) \\
@@ -116,7 +116,7 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
     trend_model = "AR1",
     # Adjust the priors
     priors = c(
-      prior(normal(mean(qlogis(model_data$prop_visits, na.rm = TRUE)), 1),
+      prior(normal(qlogis(mean(model_data$prop_visits, na.rm = TRUE)), 1),
         class = mu_raw_trend
       ),
       prior(exponential(0.33), class = sigma_raw_trend),
