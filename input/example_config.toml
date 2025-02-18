@@ -11,6 +11,7 @@ data_exclusion_period = ["2020-02-01", "2022-03-01"] # Don't fit to data within 
 exclude_COVID = [true, true]
 retrospective = [true, true]
 input_data_path = "input/example_model_data"
+output_data_path = "example_model_outputs"
 forecast_horizon = [30, 5]
 horizon_units = ["day", "week"]
 data_filename = ["NYC_daily_counts", "TX_pct_flu_ED"]
