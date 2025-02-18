@@ -25,9 +25,9 @@ These packages use metaprogramming to produce Stan files, and we also include th
 To produce forecasts each week we follow the following workflow:
 
 1. Modify the configuration file in `input/{forecast_date}/config.toml`
-2. In the command line, run ` Rscript preprocess_data.R `input/{forecast_date}/config.toml`
-3. Next run ` Rscript models.R`
-4. Lastly run `Rscript postprocess_forecasts.R `input/{forecast_date}/config.toml`
+2. In the command line, run ` Rscript preprocess_data.R input/{forecast_date}/config.toml {index}` where index is used to track the individual model runs, which in this case, also have different pre-processing due to being from different data sources. 
+3. Next run ` Rscript models.R {index}`
+4. Lastly run `Rscript postprocess_forecasts.R input/{forecast_date}/config.toml`
 5. This will populate the `output/cityforecasts/{forecast_date}` folder with a csv file formatted following the Hub submission guidelines.
 
 Eventually, steps 2-4 will be automated with the Github Action `.git/workflows/generate_forecasts` and set on a schedule to run after 12 pm CST, corresponding to the time that the `target_data` is updated on the Hub.
@@ -73,13 +73,15 @@ For the NYC data, we have count data on a daily scale so we add in a weekday com
 And since $\beta_{global}$ represents the intecept on the count scale, we place a prior on it using the mean observed count across the historical data:
 
 $$
-\beta_{global} \sim Normal(log(avgcount), 1) \\
+\beta_{global} \sim Normal(log(\frac{\sum_{l=1}^L \sum_{t=1}^T y_{l,t}}{N_{obs}}), 1) \\
 $$
+
+where $N_obs$ is the number of observations of $y_{l,t}$. 
 
 For the TX data, $\beta_{global}$ represents the intercept as a proportion, so we use:
 
 $$
-\beta_{global} \sim Normal(logit(avgpct), 1) \\
+\beta_{global} \sim Normal(logit(\frac{\sum_{l=1}^L \sum_{t=1}^T y_{l,t}}{N_{obs}}), 1) \\
 $$
 
 
