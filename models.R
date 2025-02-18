@@ -138,10 +138,33 @@ fp <- file.path(
   config$forecast_date,
   config$data_filename[index]
 )
+fp_mod <- fp <- file.path(
+  "output",
+  "model",
+  config$output_data_path,
+  config$forecast_date,
+  config$data_filename[index]
+)
+fp_summary <- fp <- file.path(
+  "output",
+  "summary",
+  config$output_data_path,
+  config$forecast_date,
+  config$data_filename[index]
+)
 fs::dir_create(fp, recurse = TRUE)
+fs::dir_create(fp_mod, recurse = TRUE)
+fs::dir_create(fp_summary, recurse = TRUE)
+
 summary <- summary(ar_mod)
-save(ar_mod, file = glue::glue(fp, "ar_mod.rda"))
-save(summary, file = glue::glue(fp, "summary_ar_mod.rda"))
+save(ar_mod, file = file.path(
+  fp_mod,
+  glue::glue("{config$model_filename[index]}.rda")
+))
+save(summary, file = file.path(
+  fp_summary,
+  glue::glue("summary_{config$model_filename[index]}.rda")
+))
 week_coeffs <- plot_predictions(ar_mod,
   condition = c("week", "series"),
   points = 0.5, conf_level = 0.5
