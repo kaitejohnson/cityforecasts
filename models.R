@@ -49,6 +49,8 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
   # \delta_l \sim Normal(0.5, 0.25) \\
   # \sigma \sim exp(1) \\
 
+  prior_mode <- as.character(log(mean(model_data$count, na.rm = TRUE)))
+
   ar_mod <- mvgam(
     # Observation formula, empty to only consider the Gamma observation process
     formula = count ~ -1,
@@ -72,7 +74,7 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
     trend_model = "AR1",
     # Adjust the priors
     priors = c(
-      prior(normal(log(mean(model_data$count, na.rm = TRUE)), 1),
+      prior(normal(4.92, 1),
         class = mu_raw_trend
       ),
       prior(exponential(0.33), class = sigma_raw_trend),
@@ -116,7 +118,7 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
     trend_model = "AR1",
     # Adjust the priors
     priors = c(
-      prior(normal(qlogis(mean(model_data$prop_visits, na.rm = TRUE)), 1),
+      prior(normal(-4.5, 1),
         class = mu_raw_trend
       ),
       prior(exponential(0.33), class = sigma_raw_trend),
