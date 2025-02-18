@@ -1,0 +1,16 @@
+forecast_date = "2025-01-21" # Date that the forecasts are actually submitted
+reference_date = "2025-01-25" # Saturday following the forecast date
+team_name = "epiforecasts"
+model_name = "dyngam"
+targets = ["ILI ED visits", "flu ED visits pct"]
+data_sources = "Hub target data"
+data_url = ["https://raw.githubusercontent.com/reichlab/flu-metrocast/refs/heads/main/raw-data/NYC_ED_daily_asof_01-21-2025.csv"]
+regions_to_fit = ["NYC", "TX"] # Specifies how to group locations for joint estimation
+regions_to_target_mapping = ["NYC: ILI ED visits", "TX: flu ED visits pct"]
+data_exclusion_period = ["2020-02-01", "2022-03-01"] # Don't fit to data within these dates
+exclude_COVID = [true, true]
+retrospective = [true, true]
+input_data_path = "input/example_model_data"
+forecast_horizon = [30, 5]
+horizon_units = ["day", "week"]
+data_filename = ["NYC_daily_counts", "TX_pct_flu_ED"]
