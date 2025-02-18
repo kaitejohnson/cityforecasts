@@ -37,27 +37,51 @@ Eventually, steps 2-4 will be automated with the Github Action `.git/workflows/g
 The below describes the preliminary model used:
 ### Observation model 
 For the forecasts of counts due to ED visits, we assume a Poisson observation process 
-```math
-y_{l,t} \sim Poisson(exp(x_{l,t})) \\
-```
+
+$$
+y_{l,t} \sim Poisson(exp(z_{l,t}))
+$$
+
 For the forecasts of the percent of ED visits due to flu, we assume a Beta observation process on the proportion of ED visits due to flu:
+
 ```math
-p_{l,t} = y_{l,t} \times 100
-y_{l,t} \sim Beta (z_{l,t}, \phi)
+\begin{align}
+p_{l,t} = y_{l,t} \times 100 \\
+y_{l,t} \sim Beta (z_{l,t}, \phi) \\
 logit(z_{l,t}) = x_{l,t}
+\end{align}
 ```
 
 ### Latent state-space model: Dynamic hierachical GAM
-We model latent admissions due either to ILI or flu with a hierarchical GAM component to capture shared seasonality and weekday effects and a univariate autoregressive component to capture the trend within each location. 
+We model latent admissions with a hierarchical GAM component to capture shared seasonality and weekday effects and a univariate autoregressive component to capture trends in the dynamics within each location. 
+
 ```math
+\begin{align}
 x_{l,t} \sim Normal(\mu_{l,t} + \delta_{l} x_{l,t-1},  \sigma_l)\\
-\mu_{l,t} = \beta_l + f_{global,t}(week) + f_{l,t}(week) + f_{global,t}(wday) \\
+\mu_{l,t} = \beta_l + f_{global,t}(week) + f_{l,t}(week) \\
 \beta_l \sim Normal(\beta_{global}, \sigma_{count}) \\
-\beta_{global} \sim Normal(log(avgcount), 1) \\
 \sigma_{count} \sim exp(0.33) \\
 \delta_l \sim Normal(0.5, 0.25) \\
 \sigma \sim exp(1) \\
+\end{align}
 ```
 
-For the NYC data, we have daily data so $t$ is measured in days. 
-For the Texas data, the percent of ED visits due to flu is reported weekly, so we exclude the $f_{global,t}(weekday)$ term and $t$ is measured in weeks. 
+For the NYC data, we have count data on a daily scale so we add in a weekday component
+```math
+\mu_{l,t} =  \beta_l + f_{global,t}(week) + f_{l,t}(week) + f_{global,t}(wday)
+```
+And since $\beta_{global}$ represents the intecept on the count scale, we place a prior on it using the mean observed count across the historical data:
+
+$$
+\beta_{global} \sim Normal(log(avgcount), 1) \\
+$$
+
+For the TX data, $\beta_{global}$ represents the intercept as a proportion, so we use:
+
+$$
+\beta_{global} \sim Normal(logit(avgpct), 1) \\
+$$
+
+
+
+For the NYC data, we have daily data so $t$ is measured in days, whereas for the Texas data, $t$ is measured in weeks. 
