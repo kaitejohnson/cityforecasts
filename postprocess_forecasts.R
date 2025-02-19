@@ -56,6 +56,12 @@ for (i in seq_along(config$regions_to_fit)) {
     config$forecast_date,
     config$data_filename[index]
   )
+  fp_forecasts <- file.path(
+    "output",
+    config$filepath_forecasts,
+    config$forecast_date
+  )
+  fs::dir_create(fp_forecasts, recurse = TRUE)
   load(file.path(
     fp_mod,
     glue::glue("{config$model_filename[index]}.rda")
@@ -105,7 +111,7 @@ for (i in seq_along(config$regions_to_fit)) {
 
   if (config$timestep_data[index] != "week") {
     df_weekly <- daily_to_epiweekly_data(df_recent, config$forecast_date)
-    if (!all(df_weekly$n_days_data[df_weekly$horizon >= 0 && horizon < 5] == 7)) { # nolint
+    if (!all(df_weekly$n_days_data[df_weekly$horizon >= 0] == 7)) { # nolint
       cli::cli_abort(
         message = "Not all weeks contain 7 days of data"
       )
@@ -186,18 +192,11 @@ for (i in seq_along(config$regions_to_fit)) {
 
   #### Save the csvs--------------------------------------------------
 
-  fp_forecasts <- file.path(
-    "output",
-    config$filepath_forecasts,
-    config$forecast_date
-  )
-  fs::dir_create(fp_forecasts, recurse = TRUE)
-
   write.csv(
     df_weekly_quantiled,
     file.path(
       fp_forecasts,
-      glue::glue("{config$forecast_date}-{config$team_name}-{model_name}.csv") # nolint
+      glue::glue("{config$forecast_date}-{config$team_name}-{config$model_name}.csv") # nolint
     )
   )
 }

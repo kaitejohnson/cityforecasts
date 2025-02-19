@@ -68,7 +68,8 @@ fs::dir_create(fp_summary, recurse = TRUE)
 
 # Data source (count vs ED pct) dictates the observation model and whether time
 # is indexed in days or weeks
-if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == "NYC" && config$timestep_data[index] == "day") { # nolint
+# NYC daily count data
+if (config$targets[index] == "ILI ED visits" && bconfig$regions_to_fit[index] == "NYC" && config$timestep_data[index] == "day") { # nolint
   ##### Dynamical GAM with independent autoregression #####
 
   # y_{l,t} \sim Poisson(exp(x_{l,t})) \\
@@ -80,13 +81,13 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
   # \delta_l \sim Normal(0.5, 0.25) \\
   # \sigma \sim exp(1) \\
 
-  prior_mode <- log(mean(model_data$count, na.rm = TRUE))
+  prior_mode <- log(mean(model_data$obs_data, na.rm = TRUE))
   message("Prior for intercept (avg ED visits): ", exp(prior_mode))
-  message("Using ", round(prior_mode, 2), " as prior")
+  message("Recommend using ", round(prior_mode, 2), " as prior")
 
   ar_mod <- mvgam(
     # Observation formula, empty to only consider the Gamma observation process
-    formula = count ~ -1,
+    formula = obs_data ~ -1,
 
     # Process model formula that includes regional intercepts
     trend_formula = ~
@@ -119,6 +120,55 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
     backend = "cmdstanr",
     family = poisson()
   )
+  # NYC weekly count data
+} else if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == "NYC" && config$timestep_data[index] == "week") { # nolint
+  ##### Dynamical GAM with independent autoregression #####
+
+  # y_{l,t} \sim Poisson(exp(x_{l,t})) \\
+  # x_{l,t} \sim Normal(\mu_{l,t} + \delta_{l} x_{l,t-1},  \sigma_{process})\\
+  # \mu_{l,t} = \beta_l + f_{global,t}(week) + f_{l,t}(week) \\
+  # \beta_l \sim Normal(\beta_{global}, \sigma_{count}) \\
+  # \beta_{global} \sim Normal(log(avgcount), 1) \\
+  # \sigma_{count} \sim exp(0.33) \\
+  # \delta_l \sim Normal(0.5, 0.25) \\
+  # \sigma \sim exp(1) \\
+
+  prior_mode <- log(mean(model_data$obs_data, na.rm = TRUE))
+  message("Prior for intercept (avg ED visits): ", exp(prior_mode))
+  message("Recommend using ", round(prior_mode, 2), " as prior")
+
+  ar_mod <- mvgam(
+    # Observation formula, empty to only consider the Gamma observation process
+    formula = obs_data ~ -1,
+
+    # Process model formula that includes regional intercepts
+    trend_formula = ~
+      # Hierarchical intercepts capture variation in average count
+      s(trend, bs = "re") +
+        # Hierarchical effects of year(shared smooth)
+        # s(year, k = 3) +
+        # # Borough level deviations
+        # s(year, trend, bs = "sz", k = 3) -1 +
+
+        # Hierarchical effects of week(shared smooth)
+        s(week, k = 12) +
+        # Borough level deviations
+        s(week, trend, bs = "sz", k = 12) - 1,
+    trend_model = "AR1",
+    # Adjust the priors
+    priors = c(
+      prior(normal(6.69, 1), # data based prior
+        class = mu_raw_trend
+      ),
+      prior(exponential(0.33), class = sigma_raw_trend),
+      prior(exponential(1), class = sigma),
+      prior(normal(0.5, 0.25), class = ar1, lb = -1, ub = 1)
+    ),
+    data = model_data,
+    newdata = forecast_data,
+    backend = "cmdstanr",
+    family = poisson()
+  )
 } else if (config$targets[index] == "flu ED visits pct") {
   ##### Dynamical GAM with independent autoregression #####
 
@@ -133,7 +183,7 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
 
   ar_mod <- mvgam(
     # Observation formula, empty to only consider the Gamma observation process
-    formula = prop_visits ~ -1,
+    formula = obs_data ~ -1,
 
     # Process model formula that includes regional intercepts
     trend_formula = ~
@@ -220,7 +270,7 @@ trace_ar_coeff <- mcmc_plot(ar_mod,
 )
 ggsave(
   plot = trace_ar_coeff,
-  filename = file.path(fp, "trace_ar_coeff.png")
+  filename = file.path(fp_figs, "trace_ar_coeff.png")
 )
 
 slopes <- plot_slopes(ar_mod,
@@ -237,19 +287,9 @@ ggsave(
 
 # Hierarchical trend effects
 trends <- plot(ar_mod, type = "smooths", trend_effects = TRUE)
-saveRDS(
-  trends,
-  file.path(fp_figs, "trends.rds")
-)
+
 # Hierarchical intercepts
 intercepts <- plot(ar_mod, type = "re", trend_effects = TRUE)
-ggsave(
-  plot = intercepts,
-  filename = file.path(fp_figs, "intercepts.png")
-)
+
 
 example_forecast <- plot(ar_mod, type = "forecast", series = 1)
-ggsave(
-  plot = example_forecast,
-  filename = file.path(fp_figs, "example_forecast.png")
-)
