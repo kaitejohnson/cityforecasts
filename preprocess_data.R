@@ -143,7 +143,7 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
     select(time, date, count, series, location, year, week, day_of_week)
 
   # Create daily forecast data to pass into mvgam
-  next_saturday <- ymd(forecast_date) + (7 - wday(forecast_date))
+  next_saturday <- ymd(forecast_date) + (7 - wday(config$forecast_date))
   forecast_data <- model_data |>
     group_by(series, location) |>
     tidyr::complete(date = seq(
