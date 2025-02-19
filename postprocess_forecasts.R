@@ -53,7 +53,6 @@ for (i in seq_along(config$regions_to_fit)) {
   )
   load(file.path(
     fp_mod,
-    config$model_filename,
     glue::glue("{config$model_filename[index]}.rda")
   ))
 

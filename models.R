@@ -237,9 +237,9 @@ ggsave(
 
 # Hierarchical trend effects
 trends <- plot(ar_mod, type = "smooths", trend_effects = TRUE)
-ggsave(
-  plot = trends,
-  filename = file.path(fp_figs, "trends.png")
+saveRDS(
+  trends,
+  file.path(fp_figs, "trends.rds")
 )
 # Hierarchical intercepts
 intercepts <- plot(ar_mod, type = "re", trend_effects = TRUE)
