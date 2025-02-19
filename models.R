@@ -4,6 +4,7 @@ library(RcppTOML)
 library(dplyr)
 library(mvgam)
 library(cmdstanr)
+library(ggplot2)
 
 # Command Line Version --------------------------------------------------------
 parsed_args <- arg_parser("Preprocess the data for a config") |>
@@ -24,15 +25,45 @@ if (!is.na(parsed_args$config)) {
 
 
 
-# Load the data
+# Load the data---------------------------------------------------------
+model_data_filename <- config$data_filename[index]
+fp_data <- file.path(
+  config$input_data_path[index],
+  config$forecast_date
+)
 load(file.path(
-  config$input_data_path[index], config$forecast_date,
-  glue::glue("{config$data_filename[index]}.rda")
+  fp_data,
+  glue::glue("{model_data_filename}.rda")
 ))
 load(file.path(
-  config$input_data_path[index], config$forecast_date,
-  glue::glue("{config$data_filename[index]}_forecast.rda")
+  fp_data,
+  glue::glue("{model_data_filename}_forecast.rda")
 ))
+## Specify other filepaths for saving ---------------------------------
+fp_figs <- file.path(
+  "output",
+  "figures",
+  config$output_data_path,
+  config$forecast_date,
+  config$data_filename[index]
+)
+fp_mod <- fp <- file.path(
+  "output",
+  "model",
+  config$output_data_path,
+  config$forecast_date,
+  config$data_filename[index]
+)
+fp_summary <- fp <- file.path(
+  "output",
+  "summary",
+  config$output_data_path,
+  config$forecast_date,
+  config$data_filename[index]
+)
+fs::dir_create(fp, recurse = TRUE)
+fs::dir_create(fp_mod, recurse = TRUE)
+fs::dir_create(fp_summary, recurse = TRUE)
 
 
 # Data source dictates the observation model and whether time is indexed
@@ -49,7 +80,9 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
   # \delta_l \sim Normal(0.5, 0.25) \\
   # \sigma \sim exp(1) \\
 
-  prior_mode <- as.character(log(mean(model_data$count, na.rm = TRUE)))
+  prior_mode <- log(mean(model_data$count, na.rm = TRUE))
+  message("Prior for intercept (avg ED visits): ", exp(prior_mode))
+  message("Using ", round(prior_mode, 2), " as prior")
 
   ar_mod <- mvgam(
     # Observation formula, empty to only consider the Gamma observation process
@@ -74,7 +107,7 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
     trend_model = "AR1",
     # Adjust the priors
     priors = c(
-      prior(normal(4.92, 1),
+      prior(normal(6.69, 1), # data based prior
         class = mu_raw_trend
       ),
       prior(exponential(0.33), class = sigma_raw_trend),
@@ -132,31 +165,8 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
   )
 }
 
-#### Make a bunch of plots and save them ####
-fp <- file.path(
-  "output",
-  "figures",
-  config$output_data_path,
-  config$forecast_date,
-  config$data_filename[index]
-)
-fp_mod <- fp <- file.path(
-  "output",
-  "model",
-  config$output_data_path,
-  config$forecast_date,
-  config$data_filename[index]
-)
-fp_summary <- fp <- file.path(
-  "output",
-  "summary",
-  config$output_data_path,
-  config$forecast_date,
-  config$data_filename[index]
-)
-fs::dir_create(fp, recurse = TRUE)
-fs::dir_create(fp_mod, recurse = TRUE)
-fs::dir_create(fp_summary, recurse = TRUE)
+#### Make a bunch of plots and save them ####----------------------------
+
 
 summary <- summary(ar_mod)
 save(ar_mod, file = file.path(
@@ -173,8 +183,8 @@ week_coeffs <- plot_predictions(ar_mod,
 ) +
   labs(y = "Counts", x = "week")
 ggsave(
-  week_coeffs,
-  file.path(fp, "week_coeffs.png")
+  plot = week_coeffs,
+  filename = file.path(fp_figs, "week_coeffs.png")
 )
 
 if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == "NYC") { # nolint
@@ -185,8 +195,8 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
   ) +
     labs(y = "Counts", x = "week")
   ggsave(
-    day_of_week,
-    file.path(fp, "day_of_week.png")
+    plot = day_of_week,
+    filename = file.path(fp_figs, "day_of_week.png")
   )
 }
 
@@ -199,8 +209,8 @@ trace_sigma <- mcmc_plot(ar_mod,
   type = "trace"
 )
 ggsave(
-  trace_sigma,
-  file.path(fp, "trace_sigma.png")
+  plot = trace_sigma,
+  filename = file.path(fp_figs, "trace_sigma.png")
 )
 
 trace_ar_coeff <- mcmc_plot(ar_mod,
@@ -209,8 +219,8 @@ trace_ar_coeff <- mcmc_plot(ar_mod,
   type = "areas"
 )
 ggsave(
-  trace_ar_coeff,
-  file.path(fp, "trace_ar_coeff.png")
+  plot = trace_ar_coeff,
+  filename = file.path(fp, "trace_ar_coeff.png")
 )
 
 slopes <- plot_slopes(ar_mod,
@@ -221,19 +231,25 @@ slopes <- plot_slopes(ar_mod,
   theme(legend.position = "none") +
   labs(y = "Log(counts)", x = "Location")
 ggsave(
-  slopes,
-  file.path(fp, "slopes.png")
+  plot = slopes,
+  filename = file.path(fp_figs, "slopes.png")
 )
 
 # Hierarchical trend effects
 trends <- plot(ar_mod, type = "smooths", trend_effects = TRUE)
 ggsave(
-  trends,
-  file.path(fp, "trends.png")
+  plot = trends,
+  filename = file.path(fp_figs, "trends.png")
 )
 # Hierarchical intercepts
 intercepts <- plot(ar_mod, type = "re", trend_effects = TRUE)
 ggsave(
-  intercepts,
-  file.path(fp, "intercepts.png")
+  plot = intercepts,
+  filename = file.path(fp_figs, "intercepts.png")
+)
+
+example_forecast <- plot(ar_mod, type = "forecast", series = 1)
+ggsave(
+  plot = example_forecast,
+  filename = file.path(fp_figs, "example_forecast.png")
 )
