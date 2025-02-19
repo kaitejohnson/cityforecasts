@@ -234,7 +234,7 @@ ggsave(
   filename = file.path(fp_figs, "week_coeffs.png")
 )
 
-if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == "NYC") { # nolint
+if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == "NYC" && config$timestep_data[index] == "day") { # nolint
   day_of_week <- plot_predictions(ar_mod,
     condition =
       c("week", "day_of_week", "series"),
