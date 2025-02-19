@@ -66,7 +66,7 @@ fs::dir_create(fp_summary, recurse = TRUE)
 # Data source (count vs ED pct) dictates the observation model and whether time
 # is indexed in days or weeks
 # NYC daily count data
-if (config$targets[index] == "ILI ED visits" && bconfig$regions_to_fit[index] == "NYC" && config$timestep_data[index] == "day") { # nolint
+if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == "NYC" && config$timestep_data[index] == "day") { # nolint
   ##### Dynamical GAM with independent autoregression #####
 
   # y_{l,t} \sim Poisson(exp(x_{l,t})) \\
