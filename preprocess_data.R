@@ -36,7 +36,6 @@ raw_data <- read.csv(config$data_url[index])
 fp_figs <- file.path(
   "output",
   "figures",
-  config$output_data_path,
   config$forecast_date,
   config$data_filename[index]
 )
