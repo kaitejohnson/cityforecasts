@@ -18,8 +18,8 @@ daily_to_epiweekly_data <- function(dfall, forecast_date) {
     ) |>
     summarize(
       n_days_data = n(),
-      count_7d = sum(count),
-      obs_weekly_sum = sum(obs_count)
+      count_7d = sum(count, na.rm = TRUE),
+      obs_weekly_sum = sum(obs_data)
     ) |>
     ungroup() |>
     dplyr::mutate(

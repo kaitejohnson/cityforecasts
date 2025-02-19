@@ -5,6 +5,10 @@ library(dplyr)
 library(mvgam)
 library(cmdstanr)
 library(lubridate)
+library(purrr)
+
+list.files(file.path("R"), full.names = TRUE) |>
+  walk(source)
 
 # Command Line Version --------------------------------------------------------
 parsed_args <- arg_parser("Preprocess the data for a config") |>
@@ -26,6 +30,7 @@ if (!is.na(parsed_args$config)) {
 # all model fits
 for (i in seq_along(config$regions_to_fit)) {
   index <- i
+  ### Load in data and model ---------------------------------------------
   # forecast data
   load(file.path(
     config$input_data_path[index], config$forecast_date,
@@ -68,9 +73,12 @@ for (i in seq_along(config$regions_to_fit)) {
 
   sampled_draws <- sample(1:max(dfall$draw), 100)
 
-  plot <- ggplot(dfall |> filter(
-    draw %in% c(sampled_draws),
-    date >= config$forecast_date - days(365)
+  df_recent <- dfall |> filter(
+    date >= ymd(config$forecast_date) - days(90)
+  )
+
+  plot_draws <- ggplot(df_recent |> filter(
+    draw %in% c(sampled_draws)
   )) +
     geom_line(
       aes(
@@ -78,33 +86,43 @@ for (i in seq_along(config$regions_to_fit)) {
         group = draw,
         color = period
       ),
-      alpha = 0.2
+      alpha = 0.2,
+      show.legend = FALSE
     ) +
+    geom_line(aes(
+      x = date,
+      y = obs_data
+    )) +
     coord_cartesian(xlim = ) +
-    facet_wrap(~location, scales = "free_y")
+    facet_wrap(~location, scales = "free_y") +
+    theme_bw() +
+    xlab("") +
+    ylab("Incident ED visits due to ILI")
   ggsave(
-    plot,
-    file.path(fp_figs, "forecast_draws.png")
+    plot = plot_draws,
+    filename = file.path(fp_figs, "forecast_draws.png")
   )
 
   if (config$timestep_data[index] != "week") {
-    dfall <- daily_to_epiweekly(dfall, config$forecast_date)
-    if (!all(df_weekly$n_days_data[df_weekly$horizon >= 0] == 7)) {
+    df_weekly <- daily_to_epiweekly_data(df_recent, config$forecast_date)
+    if (!all(df_weekly$n_days_data[df_weekly$horizon >= 0 && horizon < 5] == 7)) { # nolint
       cli::cli_abort(
         message = "Not all weeks contain 7 days of data"
       )
     }
+  } else {
+    df_weekly <- dfall
   }
 
   if (config$regions_to_fit[index] == "NYC") {
     df_weekly_quantiled <- format_nyc_forecasts(df_weekly)
   } else {
-    df_weekly_quantiled <- format_weekly_pct_data(dfall)
+    df_weekly_quantiled <- format_weekly_pct_data(df_weekly)
   }
 
   df_quantiles_wide <- df_weekly_quantiled |>
     filter(
-      target_end_date >= reference_date,
+      target_end_date >= (reference_date - weeks(1)),
       output_type_id %in% c(0.5, 0.025, 0.975, 0.25, 0.75)
     ) |>
     tidyr::pivot_wider(
@@ -118,12 +136,19 @@ for (i in seq_along(config$regions_to_fit)) {
     ggplot() +
     geom_line(
       data = df_weekly_quantiled |>
-        filter(target_end_date >= reference_date - weeks(10)),
-      aes(x = target_end_date, y = obs_weekly_sum)
+        filter(
+          target_end_date >= reference_date - weeks(10),
+          target_end_date < reference_date
+        ),
+      aes(x = target_end_date, y = obs_weekly_sum),
+      linetype = "dashed"
     ) +
     geom_point(
       data = df_weekly_quantiled |>
-        filter(target_end_date >= reference_date - weeks(10)),
+        filter(
+          target_end_date >= reference_date - weeks(10),
+          target_end_date < reference_date
+        ),
       aes(x = target_end_date, y = obs_weekly_sum)
     ) +
     facet_wrap(~location, scales = "free_y") +
@@ -151,11 +176,12 @@ for (i in seq_along(config$regions_to_fit)) {
     ) +
     xlab("") +
     ylab("ILI ED visits") +
-    ggtitle("Dynamic GAM forecasts")
+    ggtitle("Dynamic GAM forecasts") +
+    theme_bw()
 
   ggsave(
-    plot,
-    file.path(fp_figs, "quantiled_forecasts.png")
+    plot = plot_quantiles,
+    filename = file.path(fp_figs, "quantiled_forecasts.png")
   )
 
   #### Save the csvs--------------------------------------------------

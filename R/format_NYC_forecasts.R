@@ -1,6 +1,6 @@
 format_nyc_forecasts <- function(df_weekly) {
   df_weekly_quantiled <- df_weekly |>
-    trajectories_to_quantiles(
+    forecasttools::trajectories_to_quantiles(
       timepoint_cols = c("target_end_date"),
       value_col = "count_7d",
       id_cols = c(
