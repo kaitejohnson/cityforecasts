@@ -50,12 +50,13 @@ fs::dir_create(fp_data, recurse = TRUE)
 
 # Case when data is retrospective (format is different for the `as_of` data
 
-if (isTRUE(config$retrospective[index]) && config$targets[index] == "ILI ED visits") { # nolint
+if (isTRUE(config$data_format_type[index] == "NYC_ED_daily_asof") && config$targets[index] == "ILI ED visits") { # nolint
+
+  # Recent data
   data_formatted <- raw_data |>
     mutate(
       date = as.Date(Date, format = "%m/%d/%Y") + years(2000),
       count = as.integer(X),
-      series = as.factor(Dim1Value),
       # Eventually we will want to scale these (compute z scores) but leave
       # as is for now
       year = year(date),
@@ -64,26 +65,40 @@ if (isTRUE(config$retrospective[index]) && config$targets[index] == "ILI ED visi
     ) |>
     filter(Dim2Value == "All age groups") |>
     rename(location = Dim1Value) |>
-    mutate(
-      year = year - min(year) + 1,
-      time = as.integer(date - min(date) + 1)
-    ) |> # rescale year
-    select(time, date, count, series, location, year, week, day_of_week)
+    select(date, count, location, year, week, day_of_week)
+
+  if (isTRUE(config$use_historical_data[index])) {
+    old_data_raw <- read.csv(config$historical_data_url)
+    old_data_formatted <- old_data_raw |>
+      mutate(
+        date = as.Date(Date, format = "%m/%d/%Y") + years(2000),
+        count = as.integer(X),
+        # Eventually we will want to scale these (compute z scores) but leave
+        # as is for now
+        year = year(date),
+        week = week(date),
+        day_of_week = wday(date)
+      ) |>
+      filter(
+        Dim2Value == "All age groups",
+        date < min(data_formatted$date)
+      ) |>
+      rename(location = Dim1Value) |>
+      select(date, count, location, year, week, day_of_week)
+
+    data_formatted <- bind_rows(old_data_formatted, data_formatted)
+  }
 } else {
+  # Formatting for target data
   data_formatted <- raw_data |>
     mutate(
       date = ymd(target_end_date),
       count = observation,
-      series = as.factor(location),
       year = year(date),
       week = week(date),
       day_of_week = wday(date)
     ) |>
-    mutate(
-      year = year - min(year) + 1,
-      time = as.integer(date - min(date) + 1)
-    ) |> # rescale year
-    select(time, date, count, series, location, year, week, day_of_week)
+    select(date, count, location, year, week, day_of_week)
 }
 
 
@@ -99,8 +114,8 @@ if (isTRUE(config$exclude_COVID[index])) {
 
 plot_raw_data <-
   ggplot(data_formatted) +
-  geom_line(aes(x = time, y = count)) +
-  facet_wrap(~series, scales = "free_y") +
+  geom_line(aes(x = date, y = count)) +
+  facet_wrap(~location, scales = "free_y") +
   theme_bw()
 ggsave(
   filename = file.path(fp_figs, "raw_data.png"),
@@ -110,8 +125,10 @@ ggsave(
 # Preprocessing needed for the daily data
 if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == "NYC") { # nolint
   model_data <- data_formatted |>
+    filter(location != "Unknown") |> # Remove unknown because not in targets...
+    mutate(series = as.factor(location)) |>
     group_by(series, location) |>
-    complete(date = seq(min(date), max(date), by = "day")) |>
+    tidyr::complete(date = seq(min(date), max(date), by = "day")) |>
     ungroup() |>
     # Remake the predictors to fill in the missing ones
     mutate(

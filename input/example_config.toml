@@ -1,5 +1,5 @@
-forecast_date = "2025-02-18" # Date that the forecasts are actually submitted
-reference_date = "2025-02-22" # Saturday following the forecast date
+forecast_date = "2025-02-11" # Date that the forecasts are actually submitted
+reference_date = "2025-02-15" # Saturday following the forecast date
 team_name = "epiforecasts"
 model_name = "dyngam"
 filepath_forecasts = "example_cityforecasts" # replace with "cityforecasts" for real submissions
@@ -7,13 +7,16 @@ model_filename = ["ar_mod", "ar_mod"]
 targets = ["ILI ED visits", "flu ED visits pct"]
 pred_type = ["count", "prop_visits"]
 data_sources = "Hub target data"
-data_url = ["https://raw.githubusercontent.com/reichlab/flu-metrocast/refs/heads/main/target-data/time-series-ili-ed-visits.csv",
-"https://raw.githubusercontent.com/reichlab/flu-metrocast/refs/heads/main/target-data/time-series-ili-ed-visits.csv"]
+data_url = ["https://raw.githubusercontent.com/reichlab/flu-metrocast/refs/heads/main/raw-data/NYC_ED_daily_asof_02-11-2025.csv",
+"https://raw.githubusercontent.com/reichlab/flu-metrocast/refs/heads/main/target-data/time-series-flu-ed-visits-pct.csv"]
+data_format_type = ["NYC_ED_daily_asof", "target_data"]
+historical_data_url = ["https://raw.githubusercontent.com/reichlab/flu-metrocast/refs/heads/main/raw-data/NYC_ED_daily_asof_01-03-2025.csv"]
+use_historical_data = [true, false]
 regions_to_fit = ["NYC", "TX"] # Specifies how to group locations for joint estimation
 regions_to_target_mapping = ["NYC: ILI ED visits", "TX: flu ED visits pct"]
 data_exclusion_period = ["2020-02-01", "2022-03-01"] # Don't fit to data within these dates
 exclude_COVID = [true, true]
-retrospective = [false, false]
+retrospective = [true, true]
 input_data_path = "input/example_model_data"
 output_data_path = "example_model_outputs"
 forecast_horizon = [30, 5]

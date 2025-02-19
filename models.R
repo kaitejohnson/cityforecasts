@@ -66,9 +66,9 @@ fs::dir_create(fp_mod, recurse = TRUE)
 fs::dir_create(fp_summary, recurse = TRUE)
 
 
-# Data source dictates the observation model and whether time is indexed
-# in days or weeks
-if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == "NYC") { # nolint
+# Data source (count vs ED pct) dictates the observation model and whether time
+# is indexed in days or weeks
+if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == "NYC" && config$timestep_data[index] == "day") { # nolint
   ##### Dynamical GAM with independent autoregression #####
 
   # y_{l,t} \sim Poisson(exp(x_{l,t})) \\
