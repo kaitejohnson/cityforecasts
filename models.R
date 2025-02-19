@@ -43,21 +43,18 @@ load(file.path(
 fp_figs <- file.path(
   "output",
   "figures",
-  config$output_data_path,
   config$forecast_date,
   config$data_filename[index]
 )
 fp_mod <- fp <- file.path(
   "output",
   "model",
-  config$output_data_path,
   config$forecast_date,
   config$data_filename[index]
 )
 fp_summary <- fp <- file.path(
   "output",
   "summary",
-  config$output_data_path,
   config$forecast_date,
   config$data_filename[index]
 )

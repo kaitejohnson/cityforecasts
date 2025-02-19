@@ -45,14 +45,12 @@ for (i in seq_along(config$regions_to_fit)) {
   fp_mod <- file.path(
     "output",
     "model",
-    config$output_data_path,
     config$forecast_date,
     config$data_filename[index]
   )
   fp_figs <- file.path(
     "output",
     "figures",
-    config$output_data_path,
     config$forecast_date,
     config$data_filename[index]
   )
