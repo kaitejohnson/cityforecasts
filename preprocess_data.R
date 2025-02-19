@@ -4,6 +4,7 @@ library(RcppTOML)
 library(dplyr)
 library(lubridate)
 library(tidyr)
+library(ggplot2)
 
 
 
@@ -31,6 +32,22 @@ if (!is.na(parsed_args$config)) {
 
 raw_data <- read.csv(config$data_url[index])
 
+# Set up filepaths for saving data and figs -------------------------------
+fp_figs <- file.path(
+  "output",
+  "figures",
+  config$output_data_path,
+  config$forecast_date,
+  config$data_filename[index]
+)
+model_data_filename <- config$data_filename[index]
+fp_data <- file.path(
+  config$input_data_path,
+  config$forecast_date
+)
+fs::dir_create(fp_figs, recurse = TRUE)
+fs::dir_create(fp_data, recurse = TRUE)
+
 # Case when data is retrospective (format is different for the `as_of` data
 
 if (isTRUE(config$retrospective[index]) && config$targets[index] == "ILI ED visits") { # nolint
@@ -53,8 +70,22 @@ if (isTRUE(config$retrospective[index]) && config$targets[index] == "ILI ED visi
     ) |> # rescale year
     select(time, date, count, series, location, year, week, day_of_week)
 } else {
-  # insert formatting for `target_data`
+  data_formatted <- raw_data |>
+    mutate(
+      date = ymd(target_end_date),
+      count = observation,
+      series = as.factor(location),
+      year = year(date),
+      week = week(date),
+      day_of_week = wday(date)
+    ) |>
+    mutate(
+      year = year - min(year) + 1,
+      time = as.integer(date - min(date) + 1)
+    ) |> # rescale year
+    select(time, date, count, series, location, year, week, day_of_week)
 }
+
 
 if (isTRUE(config$exclude_COVID[index])) {
   data_formatted <- data_formatted |>
@@ -65,6 +96,16 @@ if (isTRUE(config$exclude_COVID[index])) {
     ))
   message("Training data has been filtered to exclude COVID years")
 }
+
+plot_raw_data <-
+  ggplot(data_formatted) +
+  geom_line(aes(x = time, y = count)) +
+  facet_wrap(~series, scales = "free_y") +
+  theme_bw()
+ggsave(
+  filename = file.path(fp_figs, "raw_data.png"),
+  plot = plot_raw_data
+)
 
 # Preprocessing needed for the daily data
 if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == "NYC") { # nolint
@@ -109,23 +150,16 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
 
 
 # Save data -----------------------------------------------------------------
-model_data_filename <- config$data_filename[index]
-dir.create(file.path(
-  config$input_data_path,
-  config$forecast_date
-))
 save(model_data,
   file = file.path(
-    config$input_data_path,
-    config$forecast_date,
+    fp_data,
     glue::glue("{model_data_filename}.rda")
   )
 )
 
 save(forecast_data,
   file = file.path(
-    config$input_data_path,
-    config$forecast_date,
+    fp_data,
     glue::glue("{model_data_filename}_forecast.rda")
   )
 )
