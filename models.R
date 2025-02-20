@@ -16,7 +16,7 @@ parsed_args <- arg_parser("Preprocess the data for a config") |>
   parse_args()
 
 if (!is.na(parsed_args$config)) {
-  # config <- parseTOML("input/example_config.toml") #nolint
+  # config <- parseTOML("input/example_config_weekly.toml") #nolint
   config <- parseTOML(parsed_args$config)
   index <- parsed_args$config_index
 } else {
@@ -28,16 +28,16 @@ if (!is.na(parsed_args$config)) {
 # Load the data---------------------------------------------------------
 model_data_filename <- config$data_filename[index]
 fp_data <- file.path(
-  config$input_data_path[index],
+  config$input_data_path,
   config$forecast_date
 )
 load(file.path(
   fp_data,
-  glue::glue("{model_data_filename}.rda")
+  glue::glue("{config$data_filename[index]}.rda")
 ))
 load(file.path(
   fp_data,
-  glue::glue("{model_data_filename}_forecast.rda")
+  glue::glue("{config$data_filename[index]}_forecast.rda")
 ))
 ## Specify other filepaths for saving ---------------------------------
 fp_figs <- file.path(

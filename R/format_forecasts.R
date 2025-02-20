@@ -1,8 +1,10 @@
-format_nyc_forecasts <- function(df_weekly) {
+format_forecasts <- function(df_weekly,
+                             pred_type = "count",
+                             target = "ILI ED visits") {
   df_weekly_quantiled <- df_weekly |>
     forecasttools::trajectories_to_quantiles(
       timepoint_cols = c("target_end_date"),
-      value_col = "count",
+      value_col = {{ pred_type }},
       id_cols = c(
         "location", "reference_date",
         "horizon", "obs_data"
@@ -10,7 +12,7 @@ format_nyc_forecasts <- function(df_weekly) {
     ) |>
     mutate(
       output_type = "quantile",
-      target = "ILI ED visits",
+      target = {{ target }},
       location = ifelse(location == "Citywide", "NYC", location)
     ) |>
     rename(
@@ -22,6 +24,14 @@ format_nyc_forecasts <- function(df_weekly) {
       target, target_end_date,
       output_type, output_type_id, value
     )
+
+  if (pred_type == "pct") {
+    df_weekly_quantiled <- df_weekly_quantiled |>
+      mutate(
+        value = 100 * value,
+        obs_data = 100 * obs_data
+      )
+  }
 
   return(df_weekly_quantiled)
 }

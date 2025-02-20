@@ -41,7 +41,7 @@ fp_figs <- file.path(
 )
 model_data_filename <- config$data_filename[index]
 fp_data <- file.path(
-  config$input_data_path[index],
+  config$input_data_path,
   config$forecast_date
 )
 fs::dir_create(fp_figs, recurse = TRUE)

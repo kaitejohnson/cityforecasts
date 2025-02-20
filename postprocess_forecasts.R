@@ -34,12 +34,12 @@ for (i in seq_along(config$regions_to_fit)) {
   ### Load in data and model ---------------------------------------------
   # forecast data
   load(file.path(
-    config$input_data_path[index], config$forecast_date,
+    config$input_data_path, config$forecast_date,
     glue::glue("{config$data_filename[index]}_forecast.rda")
   ))
   # model data
   load(file.path(
-    config$input_data_path[index], config$forecast_date,
+    config$input_data_path, config$forecast_date,
     glue::glue("{config$data_filename[index]}.rda")
   ))
   # Various filepaths to save extract the model and save the output
@@ -88,7 +88,7 @@ for (i in seq_along(config$regions_to_fit)) {
   )) +
     geom_line(
       aes(
-        x = date, y = count,
+        x = date, y = .data[[{{ config$pred_type[index] }}]],
         group = draw,
         color = period
       ),
@@ -103,7 +103,7 @@ for (i in seq_along(config$regions_to_fit)) {
     facet_wrap(~location, scales = "free_y") +
     theme_bw() +
     xlab("") +
-    ylab("Incident ED visits due to ILI")
+    ylab(config$targets[index])
   ggsave(
     plot = plot_draws,
     filename = file.path(fp_figs, "forecast_draws.png")
@@ -127,11 +127,11 @@ for (i in seq_along(config$regions_to_fit)) {
       arrange(target_end_date)
   }
 
-  if (config$regions_to_fit[index] == "NYC") {
-    df_weekly_quantiled <- format_nyc_forecasts(df_weekly)
-  } else {
-    df_weekly_quantiled <- format_weekly_pct_data(df_weekly)
-  }
+
+  df_weekly_quantiled <- format_forecasts(df_weekly,
+    pred_type = config$pred_type[index],
+    target = config$targets[index]
+  )
 
   df_quantiles_wide <- df_weekly_quantiled |>
     filter(
@@ -188,7 +188,7 @@ for (i in seq_along(config$regions_to_fit)) {
       alpha = 0.2
     ) +
     xlab("") +
-    ylab("ILI ED visits") +
+    ylab({{ config$targets[index] }}) +
     ggtitle("Dynamic GAM forecasts") +
     theme_bw()
 
