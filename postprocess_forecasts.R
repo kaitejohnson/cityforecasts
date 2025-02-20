@@ -217,7 +217,7 @@ write.csv(
   df_to_save,
   file.path(
     fp_forecasts,
-    glue::glue("{config$forecast_date}-{config$team_name}-{config$model_name}.csv") # nolint
+    glue::glue("{config$reference_date}-{config$team_name}-{config$model_name}.csv") # nolint
   )
 )
 
