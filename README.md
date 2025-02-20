@@ -52,7 +52,7 @@ logit(z_{l,t}) = x_{l,t}
 \end{align}
 ```
 
-### Latent state-space model: Dynamic hierachical GAM
+### Latent state-space model: Dynamic hierachical GAM with independent autoregression
 We model latent admissions with a hierarchical GAM component to capture shared seasonality and weekday effects and a univariate autoregressive component to capture trends in the dynamics within each location.
 
 ```math
@@ -87,3 +87,7 @@ $$
 
 
 For the NYC data, we have daily data so $t$ is measured in days, whereas for the Texas data, $t$ is measured in weeks.
+
+## Additional models 
+The above model estimates a hierarchical dynamic GAM, which contains both a GAM component and an autoregressive component. 
+We can additionally fit a more traditional hierarchical GAM (with no autoregression but with tensor product splines to jointly estimate across location and time) as well as a vector ARIMA without a spline component. Eventually, we can also mash everything together and estimate a hierarchical GAM with a multivariante vector autoregression. These will be areas of future work. 
