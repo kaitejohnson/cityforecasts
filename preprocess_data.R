@@ -18,7 +18,7 @@ parsed_args <- arg_parser("Preprocess the data for a config") |>
   parse_args()
 
 if (!is.na(parsed_args$config)) {
-  # config <- parseTOML("input/example_config.toml") #nolint
+  # config <- parseTOML("input/example_config_weekly.toml") #nolint
   config <- parseTOML(parsed_args$config)
   index <- parsed_args$config_index
 } else {
@@ -36,7 +36,6 @@ raw_data <- read.csv(config$data_url[index])
 fp_figs <- file.path(
   "output",
   "figures",
-  config$output_data_path,
   config$forecast_date,
   config$data_filename[index]
 )
@@ -48,15 +47,15 @@ fp_data <- file.path(
 fs::dir_create(fp_figs, recurse = TRUE)
 fs::dir_create(fp_data, recurse = TRUE)
 
-# Case when data is retrospective (format is different for the `as_of` data
 
+# Pre-processing: NYC daily count data ----------------------------------------
 if (isTRUE(config$data_format_type[index] == "NYC_ED_daily_asof") && config$targets[index] == "ILI ED visits") { # nolint
 
   # Recent data
   data_formatted <- raw_data |>
     mutate(
       date = as.Date(Date, format = "%m/%d/%Y") + years(2000),
-      count = as.integer(X),
+      obs_data = as.integer(X),
       # Eventually we will want to scale these (compute z scores) but leave
       # as is for now
       year = year(date),
@@ -72,7 +71,7 @@ if (isTRUE(config$data_format_type[index] == "NYC_ED_daily_asof") && config$targ
     old_data_formatted <- old_data_raw |>
       mutate(
         date = as.Date(Date, format = "%m/%d/%Y") + years(2000),
-        count = as.integer(X),
+        obs_data = as.integer(X),
         # Eventually we will want to scale these (compute z scores) but leave
         # as is for now
         year = year(date),
@@ -88,17 +87,41 @@ if (isTRUE(config$data_format_type[index] == "NYC_ED_daily_asof") && config$targ
 
     data_formatted <- bind_rows(old_data_formatted, data_formatted)
   }
+  # Preprocessing: weekly data ---------------------------------------------
 } else {
-  # Formatting for target data
+  # Formatting for weekly target data
   data_formatted <- raw_data |>
     mutate(
       date = ymd(target_end_date),
-      count = observation,
+      obs_data = observation,
       year = year(date),
       week = week(date),
       day_of_week = wday(date)
     ) |>
-    select(date, count, location, year, week, day_of_week)
+    filter(
+      as_of_date == config$forecast_date,
+      date < config$forecast_date
+    ) |>
+    arrange(date) |>
+    select(date, obs_data, location, year, week, day_of_week)
+
+  # historical data
+  if (config$use_historical_data[index] == TRUE) {
+    old_data_formatted <- raw_data |>
+      mutate(
+        date = ymd(target_end_date),
+        obs_data = observation,
+        year = year(date),
+        week = week(date),
+        day_of_week = wday(date)
+      ) |>
+      filter(as_of_date == "2025-01-03") |>
+      arrange(date) |>
+      select(date, obs_data, location, year, week, day_of_week) |>
+      filter(date < min(data_formatted$date))
+
+    data_formatted <- bind_rows(old_data_formatted, data_formatted)
+  }
 }
 
 
@@ -114,7 +137,7 @@ if (isTRUE(config$exclude_COVID[index])) {
 
 plot_raw_data <-
   ggplot(data_formatted) +
-  geom_line(aes(x = date, y = count)) +
+  geom_line(aes(x = date, y = obs_data)) +
   facet_wrap(~location, scales = "free_y") +
   theme_bw()
 ggsave(
@@ -122,8 +145,8 @@ ggsave(
   plot = plot_raw_data
 )
 
-# Preprocessing needed for the daily data
-if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == "NYC") { # nolint
+# Model data: daily count data------------------------------------------------
+if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == "NYC" && config$timestep_data[index] == "day") { # nolint
   model_data <- data_formatted |>
     filter(location != "Unknown") |> # Remove unknown because not in targets...
     mutate(series = as.factor(location)) |>
@@ -163,7 +186,46 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
       time = as.integer(date - min(date) + 1)
     ) |>
     filter(date > max(model_data$date))
-} else { # Preprocessing for weekly data
+  ## Model data: weekly data --------------------------------------------------
+} else if (config$timestep_data[index] == "week") {
+  model_data <- data_formatted |>
+    filter(location != "Unknown") |> # Remove unknown because not in targets...
+    mutate(series = as.factor(location)) |>
+    group_by(series, location) |>
+    tidyr::complete(date = seq(min(date), max(date), by = "week")) |>
+    ungroup() |>
+    # Remake the predictors to fill in the missing ones
+    mutate(
+      year = year(date),
+      week = week(date)
+    ) |>
+    mutate(
+      year = year - min(year) + 1,
+      time = floor(as.integer(date - min(date) + 1) / 7) + 1
+    ) |>
+    select(time, date, obs_data, series, location, year, week)
+
+  # Create daily forecast data to pass into mvgam
+  next_saturday <- ymd(config$forecast_date) + (7 - wday(config$forecast_date))
+  forecast_data <- model_data |>
+    group_by(series, location) |>
+    tidyr::complete(date = seq(
+      from = next_saturday,
+      to = next_saturday + # Horizon must be added from next saturday
+        weeks(config$forecast_horizon[index]),
+      by = "weeks"
+    )) |>
+    ungroup() |>
+    mutate(
+      year = year(date),
+      week = week(date)
+    ) |>
+    mutate(
+      year = year - min(year) + 1,
+      time = floor(as.integer(date - min(date) + 1) / 7) + 1
+    ) |>
+    filter(date > max(model_data$date)) |>
+    select(time, date, obs_data, series, location, year, week)
 }
 
 

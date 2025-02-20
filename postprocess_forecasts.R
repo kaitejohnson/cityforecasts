@@ -6,6 +6,7 @@ library(mvgam)
 library(cmdstanr)
 library(lubridate)
 library(purrr)
+library(tidyr)
 
 list.files(file.path("R"), full.names = TRUE) |>
   walk(source)
@@ -20,7 +21,7 @@ parsed_args <- arg_parser("Preprocess the data for a config") |>
   parse_args()
 
 if (!is.na(parsed_args$config)) {
-  # config <- parseTOML("input/example_config.toml") #nolint
+  # config <- parseTOML("input/example_config_weekly.toml") #nolint
   config <- parseTOML(parsed_args$config)
 } else {
   message("File specified in config filepath does not exist")
@@ -45,14 +46,6 @@ for (i in seq_along(config$regions_to_fit)) {
   fp_mod <- file.path(
     "output",
     "model",
-    config$output_data_path,
-    config$forecast_date,
-    config$data_filename[index]
-  )
-  fp_figs <- file.path(
-    "output",
-    "figures",
-    config$output_data_path,
     config$forecast_date,
     config$data_filename[index]
   )
@@ -60,6 +53,19 @@ for (i in seq_along(config$regions_to_fit)) {
     fp_mod,
     glue::glue("{config$model_filename[index]}.rda")
   ))
+
+  fp_figs <- file.path(
+    "output",
+    "figures",
+    config$forecast_date,
+    config$data_filename[index]
+  )
+  fp_forecasts <- file.path(
+    "output",
+    config$filepath_forecasts,
+    config$forecast_date
+  )
+  fs::dir_create(fp_forecasts, recurse = TRUE)
 
 
   # Use tidybayes to get a long tiy dataframe of draws
@@ -105,13 +111,20 @@ for (i in seq_along(config$regions_to_fit)) {
 
   if (config$timestep_data[index] != "week") {
     df_weekly <- daily_to_epiweekly_data(df_recent, config$forecast_date)
-    if (!all(df_weekly$n_days_data[df_weekly$horizon >= 0 && horizon < 5] == 7)) { # nolint
+    if (!all(df_weekly$n_days_data[df_weekly$horizon >= 0] == 7)) { # nolint
       cli::cli_abort(
         message = "Not all weeks contain 7 days of data"
       )
     }
   } else {
-    df_weekly <- dfall
+    df_weekly <- df_recent |>
+      mutate(
+        reference_date = ymd(config$forecast_date) +
+          (7 - wday(ymd(config$forecast_date), week_start = 7)),
+        target_end_date = ymd(date) + (7 - wday(date, week_start = 7)),
+        horizon = floor(as.integer(target_end_date - reference_date)) / 7
+      ) |>
+      arrange(target_end_date)
   }
 
   if (config$regions_to_fit[index] == "NYC") {
@@ -140,7 +153,7 @@ for (i in seq_along(config$regions_to_fit)) {
           target_end_date >= reference_date - weeks(10),
           target_end_date < reference_date
         ),
-      aes(x = target_end_date, y = obs_weekly_sum),
+      aes(x = target_end_date, y = obs_data),
       linetype = "dashed"
     ) +
     geom_point(
@@ -149,7 +162,7 @@ for (i in seq_along(config$regions_to_fit)) {
           target_end_date >= reference_date - weeks(10),
           target_end_date < reference_date
         ),
-      aes(x = target_end_date, y = obs_weekly_sum)
+      aes(x = target_end_date, y = obs_data)
     ) +
     facet_wrap(~location, scales = "free_y") +
     geom_line(
@@ -183,21 +196,26 @@ for (i in seq_along(config$regions_to_fit)) {
     plot = plot_quantiles,
     filename = file.path(fp_figs, "quantiled_forecasts.png")
   )
-
-  #### Save the csvs--------------------------------------------------
-
-  fp_forecasts <- file.path(
-    "output",
-    config$filepath_forecasts,
-    config$forecast_date
-  )
-  fs::dir_create(fp_forecasts, recurse = TRUE)
-
-  write.csv(
-    df_weekly_quantiled,
-    file.path(
-      fp_forecasts,
-      glue::glue("{config$forecast_date}-{config$team_name}-{model_name}.csv") # nolint
+  df_for_submission <- df_weekly_quantiled |>
+    filter(horizon >= 0) |>
+    select(
+      reference_date, location, horizon, target, target_end_date,
+      output_type, output_type_id, value
     )
-  )
+
+  if (i == 1) {
+    df_to_save <- df_for_submission
+  } else {
+    df_to_save <- bind_rows(df_to_save, df_for_submission)
+  }
 }
+
+#### Save the csvs--------------------------------------------------
+
+write.csv(
+  df_to_save,
+  file.path(
+    fp_forecasts,
+    glue::glue("{config$forecast_date}-{config$team_name}-{config$model_name}.csv") # nolint
+  )
+)

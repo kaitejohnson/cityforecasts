@@ -427,9 +427,12 @@
     "cmdstanr": {
       "Package": "cmdstanr",
       "Version": "0.8.1.9000",
-      "Source": "Repository",
-      "Repository": "https://epiforecasts.r-universe.dev",
-      "RemoteUrl": "https://github.com/stan-dev/cmdstanr",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteUsername": "stan-dev",
+      "RemoteRepo": "cmdstanr",
+      "RemoteRef": "master",
       "RemoteSha": "4e056be9ba0a56192980e8df46a2f6c79982256f",
       "Requirements": [
         "R",
@@ -442,7 +445,7 @@
         "rlang",
         "withr"
       ],
-      "Hash": "4122cd4c482cf302dcc02347fd27ba50"
+      "Hash": "f82d0d1d1615fa38f829003c3036e92c"
     },
     "coda": {
       "Package": "coda",

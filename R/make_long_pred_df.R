@@ -55,18 +55,22 @@ make_long_pred_df <- function(forecast_obj,
   }
 
   dfall <- bind_rows(df, df_hind)
+  if ({{ timestep }} == "day") {
+    factor <- 1
+  } else if ({{ timestep == "week" }}) {
+    factor <- 7
+  }
   dfall <- dfall |>
     left_join(data.frame(
       t = 1:max(dfall$t),
       date = seq(
         from = min(model_data$date),
-        to = min(model_data$date) + max(dfall$t) - 1,
+        to = min(model_data$date) + factor * max(dfall$t) - 1,
         by = {{ timestep }}
       )
     ), by = "t") |>
     left_join(
       model_data |>
-        rename(obs_data = {{ pred_type }}) |>
         select(date, obs_data, location),
       by = c("date", "location")
     )
