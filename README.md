@@ -39,7 +39,7 @@ The below describes the preliminary model used:
 For the forecasts of counts due to ED visits, we assume a Poisson observation process
 
 $$
-y_{l,t} \sim Poisson(exp(z_{l,t}))
+y_{l,t} \sim Poisson(exp(x_{l,t}))
 $$
 
 For the forecasts of the percent of ED visits due to flu, we assume a Beta observation process on the proportion of ED visits due to flu:
