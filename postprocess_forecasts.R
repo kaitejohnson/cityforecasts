@@ -7,6 +7,7 @@ library(cmdstanr)
 library(lubridate)
 library(purrr)
 library(tidyr)
+library(blogdown)
 
 list.files(file.path("R"), full.names = TRUE) |>
   walk(source)
@@ -210,7 +211,7 @@ for (i in seq_along(config$regions_to_fit)) {
   }
 }
 
-#### Save the csvs--------------------------------------------------
+#### Save the csv-----------------------------------------------------
 
 write.csv(
   df_to_save,
@@ -219,3 +220,9 @@ write.csv(
     glue::glue("{config$forecast_date}-{config$team_name}-{config$model_name}.csv") # nolint
   )
 )
+
+# Write the config and README to the final forecast folder---------------------
+if (isTRUE(config$for_submission)) {
+  write_toml(config, file.path(fp_forecasts, "config.toml"))
+  file.copy("README.md", fp_forecasts)
+}
