@@ -5,13 +5,14 @@ model_name = "dyngam"
 filepath_forecasts = "test_cityforecasts" # replace with "cityforecasts" for real submissions
 model_filename = ["ar_mod", "ar_mod"]
 targets = ["ILI ED visits", "flu ED visits pct"]
-pred_type = ["count", "prop_visits"]
+pred_type = ["count", "pct"]
 data_sources = "Hub target data"
 data_url = ["https://raw.githubusercontent.com/reichlab/flu-metrocast/refs/heads/main/target-data/time-series-ili-ed-visits.csv",
 "https://raw.githubusercontent.com/reichlab/flu-metrocast/refs/heads/main/target-data/time-series-flu-ed-visits-pct.csv"]
 data_format_type = ["target_data", "target_data"]
 historical_data_url = ["https://raw.githubusercontent.com/reichlab/flu-metrocast/refs/heads/main/raw-data/NYC_ED_daily_asof_01-03-2025.csv"]
-use_historical_data = [true, false]
+use_historical_data = [true, true]
+as_of_date_historical_data = ["2025-01-03", "2025-02-12"]
 regions_to_fit = ["NYC", "TX"] # Specifies how to group locations for joint estimation
 regions_to_target_mapping = ["NYC: ILI ED visits", "TX: flu ED visits pct"]
 data_exclusion_period = ["2020-02-01", "2022-03-01"] # Don't fit to data within these dates
