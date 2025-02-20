@@ -41,7 +41,7 @@ fp_figs <- file.path(
 )
 model_data_filename <- config$data_filename[index]
 fp_data <- file.path(
-  config$input_data_path[index],
+  config$input_data_path,
   config$forecast_date
 )
 fs::dir_create(fp_figs, recurse = TRUE)
@@ -115,7 +115,7 @@ if (isTRUE(config$data_format_type[index] == "NYC_ED_daily_asof") && config$targ
         week = week(date),
         day_of_week = wday(date)
       ) |>
-      filter(as_of_date == "2025-01-03") |>
+      filter(as_of_date == config$as_of_date_historical_data[index]) |>
       arrange(date) |>
       select(date, obs_data, location, year, week, day_of_week) |>
       filter(date < min(data_formatted$date))
@@ -126,13 +126,17 @@ if (isTRUE(config$data_format_type[index] == "NYC_ED_daily_asof") && config$targ
 
 
 if (isTRUE(config$exclude_COVID[index])) {
+  n_orig <- nrow(data_formatted)
   data_formatted <- data_formatted |>
     filter(!date %in% seq(
       from = ymd(config$data_exclusion_period[1]),
       to = ymd(config$data_exclusion_period[2]),
       by = "day"
     ))
-  message("Training data has been filtered to exclude COVID years")
+  n_new <- nrow(data_formatted)
+  if (n_new < n_orig) {
+    message("Training data has been filtered to exclude COVID years")
+  }
 }
 
 plot_raw_data <-
@@ -189,7 +193,6 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
   ## Model data: weekly data --------------------------------------------------
 } else if (config$timestep_data[index] == "week") {
   model_data <- data_formatted |>
-    filter(location != "Unknown") |> # Remove unknown because not in targets...
     mutate(series = as.factor(location)) |>
     group_by(series, location) |>
     tidyr::complete(date = seq(min(date), max(date), by = "week")) |>
@@ -226,6 +229,12 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
     ) |>
     filter(date > max(model_data$date)) |>
     select(time, date, obs_data, series, location, year, week)
+}
+
+if (config$pred_type[index] == "pct") {
+  model_data <- model_data |>
+    # Will need to add 0 and 1 lower and upper bounds
+    mutate(obs_data = obs_data / 100)
 }
 
 
