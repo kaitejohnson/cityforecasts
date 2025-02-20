@@ -2,10 +2,10 @@ format_nyc_forecasts <- function(df_weekly) {
   df_weekly_quantiled <- df_weekly |>
     forecasttools::trajectories_to_quantiles(
       timepoint_cols = c("target_end_date"),
-      value_col = "count_7d",
+      value_col = "count",
       id_cols = c(
         "location", "reference_date",
-        "horizon", "obs_weekly_sum"
+        "horizon", "obs_data"
       )
     ) |>
     mutate(
@@ -18,7 +18,7 @@ format_nyc_forecasts <- function(df_weekly) {
       value = quantile_value
     ) |>
     select(
-      reference_date, location, horizon, obs_weekly_sum,
+      reference_date, location, horizon, obs_data,
       target, target_end_date,
       output_type, output_type_id, value
     )
