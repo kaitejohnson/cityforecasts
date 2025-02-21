@@ -125,6 +125,7 @@ if (isTRUE(config$data_format_type[index] == "NYC_ED_daily_asof") && config$targ
 }
 
 
+
 if (isTRUE(config$exclude_COVID[index])) {
   n_orig <- nrow(data_formatted)
   data_formatted <- data_formatted |>
@@ -139,15 +140,6 @@ if (isTRUE(config$exclude_COVID[index])) {
   }
 }
 
-plot_raw_data <-
-  ggplot(data_formatted) +
-  geom_line(aes(x = date, y = obs_data)) +
-  facet_wrap(~location, scales = "free_y") +
-  theme_bw()
-ggsave(
-  filename = file.path(fp_figs, "raw_data.png"),
-  plot = plot_raw_data
-)
 
 # Model data: daily count data------------------------------------------------
 if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == "NYC" && config$timestep_data[index] == "day") { # nolint
@@ -165,9 +157,10 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
     ) |>
     mutate(
       year = year - min(year) + 1,
-      time = as.integer(date - min(date) + 1)
+      time = as.integer(date - min(date) + 1),
+      season = ifelse(week <= 31, year, year + 1)
     ) |>
-    select(time, date, count, series, location, year, week, day_of_week)
+    select(time, date, count, series, location, year, season, week, day_of_week)
 
   # Create daily forecast data to pass into mvgam
   next_saturday <- ymd(config$forecast_date) + (7 - wday(config$forecast_date))
@@ -187,7 +180,8 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
     ) |>
     mutate(
       year = year - min(year) + 1,
-      time = as.integer(date - min(date) + 1)
+      time = as.integer(date - min(date) + 1),
+      season = ifelse(week <= 31, year, year + 1)
     ) |>
     filter(date > max(model_data$date))
   ## Model data: weekly data --------------------------------------------------
@@ -204,9 +198,10 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
     ) |>
     mutate(
       year = year - min(year) + 1,
-      time = floor(as.integer(date - min(date) + 1) / 7) + 1
+      time = floor(as.integer(date - min(date) + 1) / 7) + 1,
+      season = ifelse(week <= 31, year, year + 1)
     ) |>
-    select(time, date, obs_data, series, location, year, week)
+    select(time, date, obs_data, series, location, year, season, week)
 
   # Create daily forecast data to pass into mvgam
   next_saturday <- ymd(config$forecast_date) + (7 - wday(config$forecast_date))
@@ -225,10 +220,11 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
     ) |>
     mutate(
       year = year - min(year) + 1,
-      time = floor(as.integer(date - min(date) + 1) / 7) + 1
+      time = floor(as.integer(date - min(date) + 1) / 7) + 1,
+      season = ifelse(week <= 31, year, year + 1)
     ) |>
     filter(date > max(model_data$date)) |>
-    select(time, date, obs_data, series, location, year, week)
+    select(time, date, obs_data, series, location, year, season, week)
 }
 
 if (config$pred_type[index] == "pct") {
@@ -237,6 +233,17 @@ if (config$pred_type[index] == "pct") {
     mutate(obs_data = obs_data / 100)
 }
 
+plot_data <-
+  ggplot(model_data) +
+  geom_line(aes(x = date, y = obs_data, color = as.factor(season)),
+    show.legend = FALSE
+  ) +
+  facet_wrap(~location, scales = "free_y") +
+  theme_bw()
+ggsave(
+  filename = file.path(fp_figs, "raw_data.png"),
+  plot = plot_data
+)
 
 # Save data -----------------------------------------------------------------
 save(model_data,
