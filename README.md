@@ -91,3 +91,43 @@ For the NYC data, we have daily data so $t$ is measured in days, whereas for the
 ## Additional models 
 The above model estimates a hierarchical dynamic GAM, which contains both a GAM component and an autoregressive component. 
 We can additionally fit a more traditional hierarchical GAM (with no autoregression but with tensor product splines to jointly estimate across location and time) as well as a vector ARIMA without a spline component. Eventually, we can also mash everything together and estimate a hierarchical GAM with a multivariante vector autoregression. These will be areas of future work. 
+
+### Dynamic Hierarchical Vector Autoregression 
+```math
+\begin{align}
+x_{l,t} \sim MVNormal(\mu_{l,t} + A \times(X_{l,t-1} - \mu_{l, t-1}),  \Sigma)\\
+\mu_{l,t} = \beta_{l,season} + f_{global,t}(week) + f_{l,t}(week) \\
+\beta_{l,season} \sim Normal(\beta_{global}, \sigma_{count}) \\
+\sigma_{count} \sim exp(0.33) \\
+A \in P(\mathbb{R})\\
+P \sim Normal(0, 0.5) \\
+\Sigma = \sigma \times C \times \sigma \\
+\sigma \sim Beta(3,3) \\
+C \sim LKJcorr(2) \\
+\end{align}
+```
+We could optionally add a time-varying seasonality component (on seasons, not years) so that we learn a global effect of the shifting of seasons over time, however, because the current season will always only be partially observed, this might not be ideal. 
+
+Additionally, for the data where we do have daily data, we can additionally add a random effect for the observations of partial weeks, which would look something like:
+```math
+\begin{align}
+x_{l,t} \sim MVNormal(\mu_{l,t} + A \times (X_{l,t-1} - \mu_{l, t-1}),  \Sigma)\\
+\mu_{l,t} = \beta_{l,season} + f_{global,t}(week) + f_{l,t}(week) + I_{pw}\alpha_{l,season} \\
+\beta_l \sim Normal(\beta_{global}, \sigma_{count}) \\
+\alpha_l \sim Normal(log(3/7), 0.2) T[-\inf, 0] \\
+\sigma_{count} \sim exp(0.33) \\
+ A \in P(\mathbb{R})\\
+P \sim Normal(0, 0.5) \\
+\Sigma = \sigma \times C \times \sigma \\
+\sigma \sim Beta(3,3) \\
+C \sim LKJcorr(2) \\
+\end{align}
+```
+Where $\alpha_{l, season}$ is the location and season-specific random effect on the indicator variable $I_{pw}$ which is set to 0 if the observation is from a full week and 1 if the observation is from a partial week. The prior is chosen based on the typicaly proprtion of the days being measured in the partial week. We restrict the value of $\alpha_{l,season}$ to negative values, it should always scale the expected counts by less than 1.  
+
+## Preliminary Analysis Plan
+The preliminary goal will be to use this model to investigate the value of partially pooling data across locations. 
+Internally, we will produce real-time forecasts for the cities in the forecast Hub using the partially pooled version of the model described above. We will then compare to a model that fits each location independently (using the same GAM structure and autoregression, just with no global effects or interacting autoregulation coefficients, as well as a model that fits only to the fully pooled data (so one location). 
+
+We will assess the forecast performance of each variation of the model, both comparing between the models within this dynamic GAM autoregressive structure, and between other models submitted to the Hubs. To ensure our results are not a byproduct of the chosen model structure here, we will also produce forecasts from either only VAR models and only dynamic GAM models, also under the different pooling conditions. 
+
