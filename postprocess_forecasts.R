@@ -218,7 +218,8 @@ write.csv(
   file.path(
     fp_forecasts,
     glue::glue("{config$reference_date}-{config$team_name}-{config$model_name}.csv") # nolint
-  )
+  ),
+  row.names = FALSE
 )
 
 # Write the config and README to the final forecast folder---------------------
