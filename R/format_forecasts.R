@@ -3,6 +3,7 @@ format_forecasts <- function(df_weekly,
                              target = "ILI ED visits") {
   df_weekly_quantiled <- df_weekly |>
     forecasttools::trajectories_to_quantiles(
+      quantiles = c(0.025, 0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95, 0.975),
       timepoint_cols = c("target_end_date"),
       value_col = {{ pred_type }},
       id_cols = c(
