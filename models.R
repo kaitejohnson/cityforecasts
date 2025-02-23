@@ -5,6 +5,8 @@ library(dplyr)
 library(mvgam)
 library(cmdstanr)
 library(ggplot2)
+library(gratia)
+library(marginaleffects)
 
 # Command Line Version --------------------------------------------------------
 parsed_args <- arg_parser("Preprocess the data for a config") |>
@@ -95,13 +97,14 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
         # # Borough level deviations
         # s(year, trend, bs = "sz", k = 3) -1 +
 
-        # Hierarchical effects of week(shared smooth)
-        s(week, k = 12) +
-        # Borough level deviations
-        s(week, trend, bs = "sz", k = 12) - 1 +
+        # Hierarchical effects of seasonality (not time varying for now)
+        s(week, k = 12, bs = "cc") +
+        # Location  level deviations
+        s(week, k = 12, bs = "cc", by = trend) - 1,
 
-        # Shared smooth of day of week
-        s(day_of_week, k = 3),
+    # Shared smooth of day of week
+    s(day_of_week, k = 3),
+    knots = list(week = c(1, 52)),
     trend_model = "AR1",
     # Adjust the priors
     priors = c(
@@ -110,7 +113,7 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
       ),
       prior(exponential(0.33), class = sigma_raw_trend),
       prior(exponential(1), class = sigma),
-      prior(normal(0.5, 0.25), class = ar1, lb = -1, ub = 1)
+      prior(normal(0.5, 0.25), class = ar1, lb = 0, ub = 1)
     ),
     data = model_data,
     newdata = forecast_data,
@@ -147,10 +150,11 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
         # # Borough level deviations
         # s(year, trend, bs = "sz", k = 3) -1 +
 
-        # Hierarchical effects of week(shared smooth)
-        s(week, k = 12) +
-        # Borough level deviations
-        s(week, trend, bs = "sz", k = 12) - 1,
+        # Hierarchical effects of seasonality (not time varying for now)
+        s(week, k = 12, bs = "cc") +
+        # Location level deviations
+        s(week, k = 12, bs = "cc", by = trend) - 1,
+    knots = list(week = c(1, 52)),
     trend_model = "AR1",
     # Adjust the priors
     priors = c(
@@ -159,7 +163,7 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
       ),
       prior(exponential(0.33), class = sigma_raw_trend),
       prior(exponential(1), class = sigma),
-      prior(normal(0.5, 0.25), class = ar1, lb = -1, ub = 1)
+      prior(normal(0.5, 0.25), class = ar1, lb = 0, ub = 1)
     ),
     data = model_data,
     newdata = forecast_data,
@@ -191,10 +195,11 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
         # # Borough level deviations
         # s(year, trend, bs = "sz", k = 3) -1 +
 
-        # Hierarchical effects of week(shared smooth)
-        s(week, k = 12) +
-        # Borough level deviations
-        s(week, trend, bs = "sz", k = 12) - 1,
+        # Hierarchical effects of seasonality (not time varying for now)
+        s(week, k = 12, bs = "cc") +
+        # Location level deviations
+        s(week, k = 12, bs = "cc", by = trend) - 1,
+    knots = list(week = c(1, 52)),
     trend_model = "AR1",
     # Adjust the priors
     priors = c(
@@ -203,7 +208,7 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
       ),
       prior(exponential(0.33), class = sigma_raw_trend),
       prior(exponential(1), class = sigma),
-      prior(normal(0.5, 0.25), class = ar1, lb = -1, ub = 1)
+      prior(normal(0.5, 0.25), class = ar1, lb = 0, ub = 1)
     ),
     data = model_data,
     newdata = forecast_data,
@@ -233,6 +238,8 @@ ggsave(
   plot = week_coeffs,
   filename = file.path(fp_figs, "week_coeffs.png")
 )
+
+plot_predictions(ar_mod, condition = "week", type = "link")
 
 if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == "NYC" && config$timestep_data[index] == "day") { # nolint
   day_of_week <- plot_predictions(ar_mod,

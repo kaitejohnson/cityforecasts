@@ -58,10 +58,10 @@ We model latent admissions with a hierarchical GAM component to capture shared s
 ```math
 \begin{align}
 x_{l,t} \sim Normal(\mu_{l,t} + \delta_{l} x_{l,t-1},  \sigma_l)\\
-\mu_{l,t} = \beta_l + f_{global,t}(week) + f_{l,t}(week) \\
+\mu_{l,t} = \beta_l + f_{global,t}(weekofyear) + f_{l,t}(weekofyear) \\
 \beta_l \sim Normal(\beta_{global}, \sigma_{count}) \\
 \sigma_{count} \sim exp(0.33) \\
-\delta_l \sim Normal(0.5, 0.25) \\
+\delta_l \sim Normal(0.5, 0.25) T[0,1] \\
 \sigma \sim exp(1) \\
 \end{align}
 ```
