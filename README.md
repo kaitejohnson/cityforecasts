@@ -88,7 +88,7 @@ $$
 
 For the NYC data, we have daily data so $t$ is measured in days, whereas for the Texas data, $t$ is measured in weeks.
 
-## Additional models 
+## Replacement models 
 The above model estimates a hierarchical dynamic GAM, which contains both a GAM component and an autoregressive component. 
 We can additionally fit a more traditional hierarchical GAM (with no autoregression but with tensor product splines to jointly estimate across location and time) as well as a vector ARIMA without a spline component. Eventually, we can also mash everything together and estimate a hierarchical GAM with a multivariante vector autoregression. These will be areas of future work. 
 
@@ -100,7 +100,7 @@ x_{l,t} \sim MVNormal(\mu_{l,t} + A \times(X_{l,t-1} - \mu_{l, t-1}),  \Sigma)\\
 \beta_{l,season} \sim Normal(\beta_{global}, \sigma_{count}) \\
 \sigma_{count} \sim exp(0.33) \\
 A \in P(\mathbb{R})\\
-P \sim Normal(0, 0.5) \\
+P \sim Normal(0, 0.5) T[-1,1] \\
 \Sigma = \sigma \times C \times \sigma \\
 \sigma \sim Beta(3,3) \\
 C \sim LKJcorr(2) \\
@@ -113,11 +113,11 @@ Additionally, for the data where we do have daily data, we can additionally add 
 \begin{align}
 x_{l,t} \sim MVNormal(\mu_{l,t} + A \times (X_{l,t-1} - \mu_{l, t-1}),  \Sigma)\\
 \mu_{l,t} = \beta_{l,season} + f_{global,t}(week) + f_{l,t}(week) + I_{pw}\alpha_{l,season} \\
-\beta_l \sim Normal(\beta_{global}, \sigma_{count}) \\
+\beta_{l,season} \sim Normal(\beta_{global}, \sigma_{count}) \\
 \alpha_l \sim Normal(log(3/7), 0.2) T[-\inf, 0] \\
 \sigma_{count} \sim exp(0.33) \\
  A \in P(\mathbb{R})\\
-P \sim Normal(0, 0.5) \\
+P \sim Normal(0, 0.5) T[-1, 1]\\
 \Sigma = \sigma \times C \times \sigma \\
 \sigma \sim Beta(3,3) \\
 C \sim LKJcorr(2) \\
@@ -130,4 +130,11 @@ The preliminary goal will be to use this model to investigate the value of parti
 Internally, we will produce real-time forecasts for the cities in the forecast Hub using the partially pooled version of the model described above. We will then compare to a model that fits each location independently (using the same GAM structure and autoregression, just with no global effects or interacting autoregulation coefficients, as well as a model that fits only to the fully pooled data (so one location). 
 
 We will assess the forecast performance of each variation of the model, both comparing between the models within this dynamic GAM autoregressive structure, and between other models submitted to the Hubs. To ensure our results are not a byproduct of the chosen model structure here, we will also produce forecasts from either only VAR models and only dynamic GAM models, also under the different pooling conditions. 
+
+Additional analysis components:
+- consider adding some different variations of handling seasonality including:
+   - time-varying seasonality "drift" which assumes this season will be most similar to previous seasons
+   - regress towards average of past historical seasons
+   - something that has a negative feedback in seasonal magnitude (e.g if last season big/early, this season small/late)
+   - learn a MVN across locations and seasons
 
