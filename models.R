@@ -170,7 +170,7 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
     backend = "cmdstanr",
     family = poisson()
   )
-} else if (config$targets[index] == "flu ED visits pct") {
+} else if (config$targets[index] == "Flu ED visits pct") {
   ##### Dynamical GAM with independent autoregression #####
 
   # y_{l,t} \sim Poisson(exp(x_{l,t})) \\

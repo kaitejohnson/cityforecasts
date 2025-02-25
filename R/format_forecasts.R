@@ -8,7 +8,8 @@ format_forecasts <- function(df_weekly,
       value_col = {{ pred_type }},
       id_cols = c(
         "location", "reference_date",
-        "horizon", "obs_data"
+        "horizon", "obs_data",
+        "max_data_date"
       )
     ) |>
     mutate(
@@ -22,7 +23,7 @@ format_forecasts <- function(df_weekly,
     ) |>
     select(
       reference_date, location, horizon, obs_data,
-      target, target_end_date,
+      target, target_end_date, max_data_date,
       output_type, output_type_id, value
     )
 

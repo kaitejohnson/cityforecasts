@@ -15,10 +15,6 @@ list.files(file.path("R"), full.names = TRUE) |>
 # Command Line Version --------------------------------------------------------
 parsed_args <- arg_parser("Preprocess the data for a config") |>
   add_argument("config", help = "Path to TOML config file") |>
-  add_argument("config_index",
-    help = "index of entry in config to use",
-    type = "integer"
-  ) |>
   parse_args()
 
 if (!is.na(parsed_args$config)) {
@@ -77,18 +73,17 @@ for (i in seq_along(config$regions_to_fit)) {
     pred_type = config$pred_type[index],
     timestep = config$timestep_data[index]
   )
-  
+
 
   sampled_draws <- sample(1:max(dfall$draw), 100)
 
   df_recent <- dfall |> filter(
     date >= ymd(config$forecast_date) - days(90)
   )
-  
+
   # need to add NYC and remove unknown for NYC forecasts
-  if(config$regions_to_fit[index] == "NYC" && 
-     !"NYC" %in% unique(df_recent$location)){
-    NYC_sum <- df_recent |>
+  if (config$regions_to_fit[index] == "NYC" && !"NYC" %in% unique(df_recent$location)) { # nolint
+    nyc_sum <- df_recent |>
       group_by(date, draw) |>
       summarize(
         obs_data = sum(obs_data),
@@ -96,16 +91,16 @@ for (i in seq_along(config$regions_to_fit)) {
       ) |>
       mutate(location = "NYC") |>
       left_join(df_recent |>
-                  select(date, t, period) |> 
-                  distinct(), by = "date") |>
+        select(date, t, period) |> # nolint
+        distinct(), by = "date") |>
       select(colnames(df_recent))
-    
+
     df_recent <- df_recent |>
       filter(location != "Unknown") |>
-      bind_rows(NYC_sum) |>
+      bind_rows(nyc_sum) |>
       arrange(date)
   }
-  
+
 
   plot_draws <- ggplot(df_recent |> filter(
     draw %in% c(sampled_draws)
@@ -146,11 +141,21 @@ for (i in seq_along(config$regions_to_fit)) {
         reference_date = ymd(config$forecast_date) +
           (7 - wday(ymd(config$forecast_date), week_start = 7)),
         target_end_date = ymd(date) + (7 - wday(date, week_start = 7)),
-        horizon = floor(as.integer(target_end_date - reference_date)) / 7
+        horizon = floor(as.integer(target_end_date - reference_date)) / 7,
+        last_obs_date_date = max(df_recent$date[!is.na(df_recent$obs_data)])
+      ) |>
+      # Find the date of the last observed data for each location
+      left_join(
+        df_recent |>
+          distinct(location, obs_data, date) |>
+          filter(!is.na(obs_data)) |>
+          group_by(location) |>
+          summarize(max_data_date = max(date)),
+        by = "location"
       ) |>
       arrange(target_end_date)
   }
-  
+
 
 
   df_weekly_quantiled <- format_forecasts(df_weekly,
@@ -160,7 +165,7 @@ for (i in seq_along(config$regions_to_fit)) {
 
   df_quantiles_wide <- df_weekly_quantiled |>
     filter(
-      target_end_date >= (reference_date - weeks(1)),
+      target_end_date >= max_data_date,
       output_type_id %in% c(0.5, 0.025, 0.975, 0.25, 0.75)
     ) |>
     tidyr::pivot_wider(
@@ -222,13 +227,13 @@ for (i in seq_along(config$regions_to_fit)) {
     filename = file.path(fp_figs, "quantiled_forecasts.png")
   )
   df_for_submission <- df_weekly_quantiled |>
-    filter(horizon >= 0) |>
+    filter(target_end_date > max_data_date) |>
     select(
       reference_date, location, horizon, target, target_end_date,
       output_type, output_type_id, value
     )
 
-  if (i == 1) {
+  if (index == 1) {
     df_to_save <- df_for_submission
   } else {
     df_to_save <- bind_rows(df_to_save, df_for_submission)
