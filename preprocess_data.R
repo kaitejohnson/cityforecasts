@@ -124,34 +124,35 @@ if (isTRUE(config$data_format_type[index] == "NYC_ED_daily_asof") && config$targ
   }
 }
 
-# Handle Unknown/NYC category 
-if(config$regions_to_fit[index] == "NYC" &&
-   !"Unknown" %in% unique(data_formatted$location)){
+# Handle Unknown/NYC category
+if (config$regions_to_fit[index] == "NYC" && !"Unknown" %in% unique(data_formatted$location)) { # nolint
   # Then we need to create "Unknown" from NYC - sum(boroughs)
-  intermediate <- data_formatted |> 
+  intermediate <- data_formatted |>
     group_by(date) |>
     mutate(loc = ifelse(location == "NYC", "NYC", "borough")) |>
     group_by(date, loc) |>
     summarise(obs_data = sum(obs_data)) |>
-    tidyr::pivot_wider(id_cols = "date",
-                       names_from = "loc",
-                       values_from = "obs_data") |>
+    tidyr::pivot_wider(
+      id_cols = "date",
+      names_from = "loc",
+      values_from = "obs_data"
+    ) |>
     ungroup() |>
-    mutate(Unknown = NYC- borough) |>
+    mutate(Unknown = NYC - borough) |>
     select(date, Unknown) |>
     rename(obs_data = Unknown) |>
-    mutate(location = "Unknown",
-           year = year(date),
-           week = week(date),
-           day_of_week = wday(date)) |>
-    select(date, obs_data, location, year, week, day_of_week) 
-  
+    mutate(
+      location = "Unknown",
+      year = year(date),
+      week = week(date),
+      day_of_week = wday(date)
+    ) |>
+    select(date, obs_data, location, year, week, day_of_week)
+
   data_formatted <- bind_rows(data_formatted, intermediate) |>
-    arrange(date) |> 
+    arrange(date) |>
     filter(!location %in% c("NYC", "Citywide"))
-  
-} else if (config$regions_to_fit[index] == "NYC" &&
-             "Unknown" %in% unique(data_formatted$location)){
+} else if (config$regions_to_fit[index] == "NYC" && "Unknown" %in% unique(data_formatted$location)) { # nolint
   # Then we just need to exclude NYC
   data_formatted <- data_formatted |>
     filter(!location %in% c("NYC", "Citywide"))

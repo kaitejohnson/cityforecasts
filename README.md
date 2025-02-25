@@ -25,7 +25,7 @@ These packages use metaprogramming to produce Stan files, and we also include th
 To produce forecasts each week we follow the following workflow:
 
 1. Modify the configuration file in `input/{forecast_date}/config.toml`
-2. In the command line, run ` Rscript preprocess_data.R input/{forecast_date}/config.toml {index}` where index is used to track the individual model runs, which in this case, also have different pre-processing due to being from different data sources. 
+2. In the command line, run ` Rscript preprocess_data.R input/{forecast_date}/config.toml {index}` where index is used to track the individual model runs, which in this case, also have different pre-processing due to being from different data sources.
 3. Next run ` Rscript models.R {index}`
 4. Lastly run `Rscript postprocess_forecasts.R input/{forecast_date}/config.toml`
 5. This will populate the `output/cityforecasts/{forecast_date}` folder with a csv file formatted following the Hub submission guidelines.
@@ -53,8 +53,8 @@ logit(z_{l,t}) = x_{l,t}
 ```
 
 ### Latent state-space model: Dynamic hierachical GAM with vector autoregression
-We model latent admissions with a hierarchical GAM component to capture shared seasonality and weekday effects and a multivariate vector autoregressive component to capture trends in the dynamics within and between each location. 
-Initially, we will use only the weekly data, so $t$ will be indexed in weeks. 
+We model latent admissions with a hierarchical GAM component to capture shared seasonality and weekday effects and a multivariate vector autoregressive component to capture trends in the dynamics within and between each location.
+Initially, we will use only the weekly data, so $t$ will be indexed in weeks.
 
 ```math
 \begin{align}
@@ -77,12 +77,10 @@ $$
 \beta_{global} \sim Normal(log(\frac{\sum_{l=1}^L \sum_{t=1}^T y_{l,t}}{N_{obs}}), 1) \\
 $$
 
-where $N_obs$ is the number of observations of $y_{l,t}$. 
+where $N_obs$ is the number of observations of $y_{l,t}$.
 
 For the TX data, $\beta_{global}$ represents the intercept as a proportion, so we use:
 
 $$
 \beta_{global} \sim Normal(logit(\frac{\sum_{l=1}^L \sum_{t=1}^T y_{l,t}}{N_{obs}}), 1) \\
 $$
-
-

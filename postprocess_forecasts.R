@@ -77,35 +77,37 @@ for (i in seq_along(config$regions_to_fit)) {
     pred_type = config$pred_type[index],
     timestep = config$timestep_data[index]
   )
-  
+
 
   sampled_draws <- sample(1:max(dfall$draw), 100)
 
   df_recent <- dfall |> filter(
     date >= ymd(config$forecast_date) - days(90)
   )
-  
+
   # need to add NYC and remove unknown for NYC forecasts
-  if(config$regions_to_fit[index] == "NYC" && 
-     !"NYC" %in% unique(df_recent$location)){
-    NYC_sum <- df_recent |>
+  if (config$regions_to_fit[index] == "NYC" && !"NYC" %in% unique(df_recent$location)) { # nolint
+    nyc_sum <- df_recent |>
       group_by(date, draw) |>
       summarize(
         obs_data = sum(obs_data),
         count = sum(count, na.rm = TRUE)
       ) |>
       mutate(location = "NYC") |>
-      left_join(df_recent |>
-                  select(date, t, period) |> 
-                  distinct(), by = "date") |>
+      left_join(
+        df_recent |>
+          select(date, t, period) |>
+          distinct(),
+        by = "date"
+      ) |>
       select(colnames(df_recent))
-    
+
     df_recent <- df_recent |>
       filter(location != "Unknown") |>
-      bind_rows(NYC_sum) |>
+      bind_rows(nyc_sum) |>
       arrange(date)
   }
-  
+
 
   plot_draws <- ggplot(df_recent |> filter(
     draw %in% c(sampled_draws)
@@ -150,7 +152,7 @@ for (i in seq_along(config$regions_to_fit)) {
       ) |>
       arrange(target_end_date)
   }
-  
+
 
 
   df_weekly_quantiled <- format_forecasts(df_weekly,
