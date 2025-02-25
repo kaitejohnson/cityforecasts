@@ -1,9 +1,9 @@
 forecast_date = "2025-02-18" # Date that the forecasts are actually submitted
 reference_date = "2025-02-22" # Saturday following the forecast date
 team_name = "epiforecasts"
-model_name = "dyngam"
+model_name = "dyngamvar"
 filepath_forecasts = "test_cityforecasts" # replace with "cityforecasts" for real submissions
-model_filename = ["ar_mod", "ar_mod"]
+model_filename = ["var_mod", "var_mod"]
 targets = ["ILI ED visits", "Flu ED visits pct"]
 pred_type = ["count", "pct"]
 data_sources = "Hub target data"

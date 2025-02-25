@@ -9,13 +9,25 @@ model_contributors: [
     "affiliation": "London School of Hygiene and Tropical Medicine",
     "email": "kaitlyn.johnson@lshtm.ac.uk",
     "orcid": "0000-0001-8011-0012"
+  },
+   {
+    "name": "Sam Abbott",
+    "affiliation": "London School of Hygiene and Tropical Medicine",
+    "email": "sam.abbott@lshtm.ac.uk",
+    "orcid": "0000-0001-8057-8037"
+  },
+   {
+    "name": "Sebastian Funk",
+    "affiliation": "London School of Hygiene and Tropical Medicine",
+    "email": "sebastian.funk@lshtm.ac.uk",
+    "orcid": "0000-0002-2842-3406"
   }
 ]
 license: "CC-BY-4.0"
 team_funding: ""
 methods: "A Bayesian hierarchical GAM with a univariate AR(1) process"
-methods_url: "https://github.com/kaitejohnson/cityforecasts/blob/main/README.md"
+methods_url: "https://github.com/epiforecasts/cityforecasts/blob/main/README.md"
 data_sources: "ILI NYC ED Visits, we exclude Feb 2020 to March 2022, flu ED visits pct for TX"
 ensemble_of_hub_models: false
-repo_url: "https://github.com/kaitejohnson/cityforecasts/"
+repo_url: "https://github.com/epiforecasts/cityforecasts/"
 citation: ""
