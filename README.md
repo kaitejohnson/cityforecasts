@@ -60,7 +60,8 @@ Initially, we will use only the weekly data, so $t$ will be indexed in weeks.
 \begin{align}
 x_{l,t} \sim Normal(\mu_{l,t} + A x_{l,t-1},  \Sigma)\\
 \mu_{l,t} = \beta_{l,season} + f_{global,t}(weekofyear) + f_{l,t}(weekofyear) \\
-\beta_{l,season} \sim Normal(\beta_{global}, \sigma_{count}) \\
+\beta_{l,season} \sim Normal(\beta_l, \sigma_{count}) \\
+\beta_{l} \sim Normal(\beta_{global}, \sigma_{count}) \\
 \sigma_{count} \sim exp(0.33) \\
 A \in P(\mathbb{R})\\
 P \sim Normal(0, 0.5) T[-1,1] \\
