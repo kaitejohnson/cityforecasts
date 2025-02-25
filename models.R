@@ -48,7 +48,7 @@ fp_figs <- file.path(
   config$forecast_date,
   config$data_filename[index]
 )
-fp_mod <- fp <- file.path(
+fp_mod <- file.path(
   "output",
   "model",
   config$forecast_date,
