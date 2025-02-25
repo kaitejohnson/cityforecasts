@@ -72,7 +72,7 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
   ##### Dynamical GAM with vector autoregression #####
 
   # y_{l,t} \sim Poisson(exp(x_{l,t})) \\
-  # x_{l,t} \sim MVNormal(\mu_{l,t} + A (X_{l,t-1} - \mu_{l,t-1}),  \Sigma)\\
+  # x_{l,t} \sim MVNormal(\mu_{l,t} + A (X_{l,t-1}),  \Sigma)\\
   # \mu_{l,t} = \beta_{l,season} + f_{global,t}(weekofyear) + f_{l,t}(weekofyear) + f_{global,t}(wday) \\ #nolint
   # \beta_{l,season} \sim Normal(\beta_l, \sigma_{count}) \\
   # \beta_{l} \sim Normal(\beta_{global}, \sigma_{count}) \\
@@ -130,7 +130,7 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
   ##### Dynamical GAM with vector autoregression #####
 
   # y_{l,t} \sim Poisson(exp(x_{l,t})) \\
-  # x_{l,t} \sim MVNormal(\mu_{l,t} + A (X_{l,t-1} - \mu_{l,t-1}),  \Sigma)\\
+  # x_{l,t} \sim MVNormal(\mu_{l,t} + A (X_{l,t-1}),  \Sigma)\\
   # \mu_{l,t} = \beta_{l,season} + f_{global,t}(weekofyear) + f_{l,t}(weekofyear) \\ #nolint
   # \beta_{l,season} \sim Normal(\beta_l, \sigma_{count}) \\
   # \beta_{l} \sim Normal(\beta_{global}, \sigma_{count}) \\
@@ -200,7 +200,7 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
   # p_{l,t} = y_{l,t} \times 100 \\
   # y_{l,t} \sim Beta (z_{l,t}, \phi) \\
   # logit(z_{l,t}) = x_{l,t} \\
-  # x_{l,t} \sim MVNormal(\mu_{l,t} + A (X_{l,t-1} - \mu_{l,t-1}),  \Sigma)\\
+  # x_{l,t} \sim MVNormal(\mu_{l,t} + A (X_{l,t-1}),  \Sigma)\\
   # \mu_{l,t} = \beta_{l,season} + f_{global,t}(weekofyear) + f_{l,t}(weekofyear) \\ #nolint
   # \beta_{l,season} \sim Normal(\beta_l, \sigma_{count}) \\
   # \beta_{l} \sim Normal(\beta_{global}, \sigma_{count}) \\
