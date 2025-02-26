@@ -258,5 +258,5 @@ write.csv(
 if (isTRUE(config$for_submission)) {
   write_toml(config, file.path(fp_forecasts, "config.toml"))
   file.copy("README.md", fp_forecasts)
-  writeLines(stancode(ar_mod), file.path(fp_forecasts, glue::glue("{config$model_name}.stan"))) # nolint
+  writeLines(stancode(ar_mod), file.path(fp_forecasts, glue::glue("{config$model_filename[index]}.stan"))) # nolint
 }
