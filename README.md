@@ -24,8 +24,9 @@ These packages use metaprogramming to produce Stan files, and we also include th
 
 To produce forecasts each week we follow the following workflow:
 
+
 1. Modify the configuration file in `input/config.toml`
-2. In the command line, run ` Rscript preprocess_data.R input/config.toml {index}` where index is used to track the individual model runs, which in this case, also have different pre-processing due to being from different data sources. 
+2. In the command line, run ` Rscript preprocess_data.R input/config.toml {index}` where index is used to track the individual model runs, which in this case, also have different pre-processing due to being from different data sources.
 3. Next run ` Rscript models.R input/config.toml {index}`
 4. Lastly run `Rscript postprocess_forecasts.R input/{forecast_date}/config.toml`
 5. This will populate the `output/cityforecasts/{forecast_date}` folder with a csv file formatted following the Hub submission guidelines.
@@ -52,42 +53,36 @@ logit(z_{l,t}) = x_{l,t}
 \end{align}
 ```
 
-### Latent state-space model: Dynamic hierachical GAM with independent autoregression
-We model latent admissions with a hierarchical GAM component to capture shared seasonality and weekday effects and a univariate autoregressive component to capture trends in the dynamics within each location.
+### Latent state-space model: Dynamic hierachical GAM with vector autoregression
+We model latent admissions with a hierarchical GAM component to capture shared seasonality and weekday effects and a multivariate vector autoregressive component to capture trends in the dynamics within and between each location.
+Initially, we will use only the weekly data, so $t$ will be indexed in weeks.
 
 ```math
 \begin{align}
-x_{l,t} \sim Normal(\mu_{l,t} + \delta_{l} x_{l,t-1},  \sigma_l)\\
-\mu_{l,t} = \beta_l + f_{global,t}(weekofyear) + f_{l,t}(weekofyear) \\
-\beta_l \sim Normal(\beta_{global}, \sigma_{count}) \\
+x_{l,t} \sim Normal(\mu_{l,t} + A * (X_{l,t-1} - \mu_{l,t-1})),  \Sigma)\\
+\mu_{l,t} = \beta_{l,season} + f_{global,t}(weekofyear) + f_{l,t}(weekofyear) \\
+\beta_{l,season} \sim Normal(\beta_l, \sigma_{count}) \\
+\beta_{l} \sim Normal(\beta_{global}, \sigma_{count}) \\
 \sigma_{count} \sim exp(0.33) \\
-\delta_l \sim Normal(0.5, 0.25) T[0,1] \\
-\sigma \sim exp(1) \\
+A \in P(\mathbb{R})\\
+P \sim Normal(0, 0.5) T[-1,1] \\
+\Sigma = \sigma \times C \times \sigma \\
+\sigma \sim Beta(3,3) \\
+C \sim LKJcorr(2) \\
 \end{align}
 ```
 
-For the NYC data, we have count data on a daily scale so we add in a weekday component
-```math
-\mu_{l,t} =  \beta_l + f_{global,t}(week) + f_{l,t}(week) + f_{global,t}(wday)
-```
-And since $\beta_{global}$ represents the intecept on the count scale, we place a prior on it using the mean observed count across the historical data:
+
+For the NYC data, we have count data and so $\beta_{global}$ represents the intercept on the count scale, we place a prior on it using the mean observed count across the historical data:
 
 $$
 \beta_{global} \sim Normal(log(\frac{\sum_{l=1}^L \sum_{t=1}^T y_{l,t}}{N_{obs}}), 1) \\
 $$
 
-where $N_obs$ is the number of observations of $y_{l,t}$. 
+where $N_obs$ is the number of observations of $y_{l,t}$.
 
 For the TX data, $\beta_{global}$ represents the intercept as a proportion, so we use:
 
 $$
 \beta_{global} \sim Normal(logit(\frac{\sum_{l=1}^L \sum_{t=1}^T y_{l,t}}{N_{obs}}), 1) \\
 $$
-
-
-
-For the NYC data, we have daily data so $t$ is measured in days, whereas for the Texas data, $t$ is measured in weeks.
-
-## Additional models 
-The above model estimates a hierarchical dynamic GAM, which contains both a GAM component and an autoregressive component. 
-We can additionally fit a more traditional hierarchical GAM (with no autoregression but with tensor product splines to jointly estimate across location and time) as well as a vector ARIMA without a spline component. Eventually, we can also mash everything together and estimate a hierarchical GAM with a multivariante vector autoregression. These will be areas of future work. 

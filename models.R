@@ -69,16 +69,21 @@ fs::dir_create(fp_summary, recurse = TRUE)
 # is indexed in days or weeks
 # NYC daily count data
 if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == "NYC" && config$timestep_data[index] == "day") { # nolint
-  ##### Dynamical GAM with independent autoregression #####
+  ##### Dynamical GAM with vector autoregression #####
 
   # y_{l,t} \sim Poisson(exp(x_{l,t})) \\
-  # x_{l,t} \sim Normal(\mu_{l,t} + \delta_{l} x_{l,t-1},  \sigma_{process})\\
-  # \mu_{l,t} = \beta_l + f_{global,t}(week) + f_{l,t}(week) + f_{global,t}(wday) \\ #nolint
-  # \beta_l \sim Normal(\beta_{global}, \sigma_{count}) \\
+  # x_{l,t} \sim MVNormal(\mu_{l,t} + A (X_{l,t-1} - \mu_l{t-1}),  \Sigma)\\
+  # \mu_{l,t} = \beta_{l,season} + f_{global,t}(weekofyear) + f_{l,t}(weekofyear) + f_{global,t}(wday) \\ #nolint
+  # \beta_{l,season} \sim Normal(\beta_l, \sigma_{count}) \\
+  # \beta_{l} \sim Normal(\beta_{global}, \sigma_{count}) \\
   # \beta_{global} \sim Normal(log(avgcount), 1) \\
   # \sigma_{count} \sim exp(0.33) \\
-  # \delta_l \sim Normal(0.5, 0.25) \\
-  # \sigma \sim exp(1) \\
+  # A \in P(\mathbb{R}) \\
+  # P \sim Normal(0, 0.5) T[-1,1] \\
+  # \Sigma = \sigma \times C \times \sigma \\
+  # \sigma \sim Beta(3,3) \\
+  # C \sim LKJcorr(2) \\
+
 
   prior_mode <- log(mean(model_data$obs_data, na.rm = TRUE))
   message("Prior for intercept (avg ED visits): ", exp(prior_mode))
@@ -92,6 +97,7 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
     trend_formula = ~
       # Hierarchical intercepts capture variation in average count
       s(trend, bs = "re") +
+        s(trend, season, bs = "re") +
         # Hierarchical effects of year(shared smooth)
         # s(year, k = 3) +
         # # Borough level deviations
@@ -105,15 +111,14 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
     # Shared smooth of day of week
     s(day_of_week, k = 3),
     knots = list(week = c(1, 52)),
-    trend_model = "AR1",
+    trend_model = VAR(cor = TRUE),
     # Adjust the priors
     priors = c(
       prior(normal(6.69, 1), # data based prior
         class = mu_raw_trend
       ),
       prior(exponential(0.33), class = sigma_raw_trend),
-      prior(exponential(1), class = sigma),
-      prior(normal(0.5, 0.25), class = ar1, lb = 0, ub = 1)
+      prior(beta(3, 3), class = sigma, lb = 0.2, ub = 1)
     ),
     data = model_data,
     newdata = forecast_data,
@@ -122,16 +127,35 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
   )
   # NYC weekly count data
 } else if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == "NYC" && config$timestep_data[index] == "week") { # nolint
-  ##### Dynamical GAM with independent autoregression #####
+  ##### Dynamical GAM with vector autoregression #####
 
   # y_{l,t} \sim Poisson(exp(x_{l,t})) \\
-  # x_{l,t} \sim Normal(\mu_{l,t} + \delta_{l} x_{l,t-1},  \sigma_{process})\\
-  # \mu_{l,t} = \beta_l + f_{global,t}(week) + f_{l,t}(week) \\
-  # \beta_l \sim Normal(\beta_{global}, \sigma_{count}) \\
+  # x_{l,t} \sim MVNormal(\mu_{l,t} + A (X_{l,t-1} - \mu_{l,t-1}),  \Sigma)\\
+  # \mu_{l,t} = \beta_{l,season} + f_{global,t}(weekofyear) + f_{l,t}(weekofyear) \\ #nolint
+  # \beta_{l,season} \sim Normal(\beta_l, \sigma_{count}) \\
+  # \beta_{l} \sim Normal(\beta_{global}, \sigma_{count}) \\
   # \beta_{global} \sim Normal(log(avgcount), 1) \\
   # \sigma_{count} \sim exp(0.33) \\
-  # \delta_l \sim Normal(0.5, 0.25) \\
-  # \sigma \sim exp(1) \\
+  # A \in P(\mathbb{R}) \\
+  # P \sim Normal(0, 0.5) T[-1,1] \\
+  # \Sigma = \sigma \times C \times \sigma \\
+  # \sigma \sim Beta(3,3) \\
+  # C \sim LKJcorr(2) \\
+
+  # Gets the default priors
+  def_priors <- get_mvgam_priors(
+    formula = obs_data ~ -1,
+    trend_formula = ~
+      s(trend, bs = "re") +
+        s(trend, season, bs = "re") +
+        s(week, k = 12, bs = "cc") +
+        s(week, k = 12, bs = "cc", by = trend) - 1,
+    knots = list(week = c(1, 52)),
+    trend_model = VAR(cor = TRUE),
+    data = model_data,
+    family = poisson()
+  )
+
 
   prior_mode <- log(mean(model_data$obs_data, na.rm = TRUE))
   message("Prior for intercept (avg ED visits): ", exp(prior_mode))
@@ -145,6 +169,7 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
     trend_formula = ~
       # Hierarchical intercepts capture variation in average count
       s(trend, bs = "re") +
+        s(trend, season, bs = "re") +
         # Hierarchical effects of year(shared smooth)
         # s(year, k = 3) +
         # # Borough level deviations
@@ -155,32 +180,44 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
         # Location level deviations
         s(week, k = 12, bs = "cc", by = trend) - 1,
     knots = list(week = c(1, 52)),
-    trend_model = "AR1",
+    trend_model = VAR(cor = TRUE),
     # Adjust the priors
     priors = c(
       prior(normal(6.69, 1), # data based prior
         class = mu_raw_trend
       ),
       prior(exponential(0.33), class = sigma_raw_trend),
-      prior(exponential(1), class = sigma),
-      prior(normal(0.5, 0.25), class = ar1, lb = 0, ub = 1)
+      prior(beta(3, 3), class = sigma, lb = 0.2, ub = 1)
     ),
     data = model_data,
     newdata = forecast_data,
     backend = "cmdstanr",
-    family = poisson()
+    family = poisson(),
+    adapt_delta = 0.95
   )
 } else if (config$targets[index] == "Flu ED visits pct") {
-  ##### Dynamical GAM with independent autoregression #####
+  ##### Dynamical GAM with vector autoregression #####
+  # p_{l,t} = y_{l,t} \times 100 \\
+  # y_{l,t} \sim Beta (z_{l,t}, \phi) \\
+  # logit(z_{l,t}) = x_{l,t} \\
+  # x_{l,t} \sim MVNormal(\mu_{l,t} + A (X_{l,t-1} - \mu_{l,t-1}),  \Sigma)\\
+  # \mu_{l,t} = \beta_{l,season} + f_{global,t}(weekofyear) + f_{l,t}(weekofyear) \\ #nolint
+  # \beta_{l,season} \sim Normal(\beta_l, \sigma_{count}) \\
+  # \beta_{l} \sim Normal(\beta_{global}, \sigma_{count}) \\
+  # \beta_{global} \sim Normal(log(avgprop), 1) \\
 
-  # y_{l,t} \sim Poisson(exp(x_{l,t})) \\
-  # x_{l,t} \sim Normal(\mu_{l,t} + \delta_{l} x_{l,t-1},  \sigma_{process})\\
-  # \mu_{l,t} = \beta_l + f_{global,t}(week) + f_{l,t}(week) \\
-  # \beta_l \sim Normal(\beta_{global}, \sigma_{count}) \\
-  # \beta_{global} \sim Normal(logit(avgprop), 1) \\
   # \sigma_{count} \sim exp(0.33) \\
-  # \delta_l \sim Normal(0.5, 0.25) \\
-  # \sigma \sim exp(1) \\
+  # A \in P(\mathbb{R}) \\
+  # P \sim Normal(0, 0.5) T[-1,1] \\
+  # \Sigma = \sigma \times C \times \sigma \\
+  # \sigma \sim Beta(3,3) \\
+  # C \sim LKJcorr(2) \\
+  prior_mode <- log(mean(model_data$obs_data, na.rm = TRUE))
+  message(
+    "Prior for intercept (avg prop ED visits due to flu): ",
+    exp(prior_mode)
+  )
+  message("Recommend using ", round(prior_mode, 2), " as prior")
 
   ar_mod <- mvgam(
     # Observation formula, empty to only consider the Gamma observation process
@@ -189,7 +226,7 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
     # Process model formula that includes regional intercepts
     trend_formula = ~
       # Hierarchical intercepts capture variation in average count
-      s(trend, bs = "re") +
+      s(trend, season, bs = "re") +
         # Hierarchical effects of year(shared smooth)
         # s(year, k = 3) +
         # # Borough level deviations
@@ -200,15 +237,14 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
         # Location level deviations
         s(week, k = 12, bs = "cc", by = trend) - 1,
     knots = list(week = c(1, 52)),
-    trend_model = "AR1",
+    trend_model = VAR(cor = TRUE),
     # Adjust the priors
     priors = c(
-      prior(normal(-4.5, 1),
+      prior(normal(-4.1, 1), # data based prior
         class = mu_raw_trend
       ),
       prior(exponential(0.33), class = sigma_raw_trend),
-      prior(exponential(1), class = sigma),
-      prior(normal(0.5, 0.25), class = ar1, lb = 0, ub = 1)
+      prior(beta(3, 3), class = sigma, lb = 0.2, ub = 1)
     ),
     data = model_data,
     newdata = forecast_data,
@@ -221,9 +257,14 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
 
 
 summary <- summary(ar_mod)
+code <- stancode(ar_mod)
 save(ar_mod, file = file.path(
   fp_mod,
   glue::glue("{config$model_filename[index]}.rda")
+))
+writeLines(code, file.path(
+  fp_mod,
+  glue::glue("{config$model_filename[index]}.stan")
 ))
 save(summary, file = file.path(
   fp_summary,
@@ -267,15 +308,59 @@ ggsave(
   filename = file.path(fp_figs, "trace_sigma.png")
 )
 
-trace_ar_coeff <- mcmc_plot(ar_mod,
-  variable = "ar1",
-  regex = TRUE,
-  type = "areas"
+# Make a plot of the matrix of autoregulation coefficients
+n_locs <- length(unique(model_data$location))
+a_pars <- matrix(NA,
+  nrow = n_locs,
+  ncol = n_locs
 )
+for (i in 1:n_locs) {
+  for (j in 1:n_locs) {
+    a_pars[i, j] <- paste0("A[", i, ",", j, "]")
+  }
+}
+plot_a_matrix <- mcmc_plot(ar_mod,
+  variable = as.vector(t(a_pars)),
+  type = "hist"
+) +
+  geom_vline(
+    xintercept = 0,
+    col = "white",
+    linewidth = 2
+  ) +
+  geom_vline(
+    xintercept = 0,
+    linewidth = 1
+  )
 ggsave(
-  plot = trace_ar_coeff,
-  filename = file.path(fp_figs, "trace_ar_coeff.png")
+  plot = plot_a_matrix,
+  filename = file.path(fp_figs, "a_matrix.png")
 )
+
+sigma_pars <- matrix(NA, nrow = n_locs, ncol = n_locs)
+for (i in 1:n_locs) {
+  for (j in 1:n_locs) {
+    sigma_pars[i, j] <- paste0("Sigma[", i, ",", j, "]")
+  }
+}
+plot_sigma <- mcmc_plot(ar_mod,
+  variable = as.vector(t(sigma_pars)),
+  type = "hist"
+) +
+  geom_vline(
+    xintercept = 0,
+    col = "white",
+    linewidth = 2
+  ) +
+  geom_vline(
+    xintercept = 0,
+    linewidth = 1
+  )
+ggsave(
+  plot = plot_sigma,
+  filename = file.path(fp_figs, "Sigma.png")
+)
+
 
 slopes <- plot_slopes(ar_mod,
   variable = "week",

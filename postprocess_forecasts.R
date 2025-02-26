@@ -90,9 +90,12 @@ for (i in seq_along(config$regions_to_fit)) {
         count = sum(count, na.rm = TRUE)
       ) |>
       mutate(location = "NYC") |>
-      left_join(df_recent |>
-        select(date, t, period) |> # nolint
-        distinct(), by = "date") |>
+      left_join(
+        df_recent |>
+          select(date, t, period) |>
+          distinct(),
+        by = "date"
+      ) |>
       select(colnames(df_recent))
 
     df_recent <- df_recent |>
@@ -219,7 +222,7 @@ for (i in seq_along(config$regions_to_fit)) {
     ) +
     xlab("") +
     ylab({{ config$targets[index] }}) +
-    ggtitle("Dynamic GAM forecasts") +
+    ggtitle("Dynamic GAM + VAR(1) forecasts") +
     theme_bw()
 
   ggsave(
@@ -255,4 +258,5 @@ write.csv(
 if (isTRUE(config$for_submission)) {
   write_toml(config, file.path(fp_forecasts, "config.toml"))
   file.copy("README.md", fp_forecasts)
+  writeLines(stancode(ar_mod), file.path(fp_forecasts, glue::glue("{config$model_filename[index]}.stan"))) # nolint
 }
