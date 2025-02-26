@@ -195,7 +195,7 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
     family = poisson(),
     adapt_delta = 0.95
   )
-} else if (config$targets[index] == "flu ED visits pct") {
+} else if (config$targets[index] == "Flu ED visits pct") {
   ##### Dynamical GAM with vector autoregression #####
   # p_{l,t} = y_{l,t} \times 100 \\
   # y_{l,t} \sim Beta (z_{l,t}, \phi) \\
@@ -205,6 +205,7 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
   # \beta_{l,season} \sim Normal(\beta_l, \sigma_{count}) \\
   # \beta_{l} \sim Normal(\beta_{global}, \sigma_{count}) \\
   # \beta_{global} \sim Normal(log(avgprop), 1) \\
+
   # \sigma_{count} \sim exp(0.33) \\
   # A \in P(\mathbb{R}) \\
   # P \sim Normal(0, 0.5) T[-1,1] \\

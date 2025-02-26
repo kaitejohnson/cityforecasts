@@ -238,10 +238,16 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
 
   # Create forecast data to pass into mvgam
   next_saturday <- ymd(config$forecast_date) + (7 - wday(config$forecast_date))
+  last_obs_complete_date <- data_formatted |>
+    ungroup() |>
+    filter(day_of_week == 7) |>
+    summarise(max_date = max(date)) |>
+    pull(max_date)
+
   forecast_data <- model_data |>
     group_by(series, location) |>
     tidyr::complete(date = seq(
-      from = next_saturday,
+      from = last_obs_complete_date + days(7),
       to = next_saturday + # Horizon must be added from next saturday
         weeks(config$forecast_horizon[index]),
       by = "weeks"
