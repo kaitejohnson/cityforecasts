@@ -72,7 +72,7 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
   ##### Dynamical GAM with vector autoregression #####
 
   # y_{l,t} \sim Poisson(exp(x_{l,t})) \\
-  # x_{l,t} \sim MVNormal(\mu_{l,t} + A (X_{l,t-1}),  \Sigma)\\
+  # x_{l,t} \sim MVNormal(\mu_{l,t} + A (X_{l,t-1} - \mu_l{t-1}),  \Sigma)\\
   # \mu_{l,t} = \beta_{l,season} + f_{global,t}(weekofyear) + f_{l,t}(weekofyear) + f_{global,t}(wday) \\ #nolint
   # \beta_{l,season} \sim Normal(\beta_l, \sigma_{count}) \\
   # \beta_{l} \sim Normal(\beta_{global}, \sigma_{count}) \\
@@ -130,7 +130,7 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
   ##### Dynamical GAM with vector autoregression #####
 
   # y_{l,t} \sim Poisson(exp(x_{l,t})) \\
-  # x_{l,t} \sim MVNormal(\mu_{l,t} + A (X_{l,t-1}),  \Sigma)\\
+  # x_{l,t} \sim MVNormal(\mu_{l,t} + A (X_{l,t-1} - \mu_{l,t-1}),  \Sigma)\\
   # \mu_{l,t} = \beta_{l,season} + f_{global,t}(weekofyear) + f_{l,t}(weekofyear) \\ #nolint
   # \beta_{l,season} \sim Normal(\beta_l, \sigma_{count}) \\
   # \beta_{l} \sim Normal(\beta_{global}, \sigma_{count}) \\
@@ -200,7 +200,7 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
   # p_{l,t} = y_{l,t} \times 100 \\
   # y_{l,t} \sim Beta (z_{l,t}, \phi) \\
   # logit(z_{l,t}) = x_{l,t} \\
-  # x_{l,t} \sim MVNormal(\mu_{l,t} + A (X_{l,t-1}),  \Sigma)\\
+  # x_{l,t} \sim MVNormal(\mu_{l,t} + A (X_{l,t-1} - \mu_{l,t-1}),  \Sigma)\\
   # \mu_{l,t} = \beta_{l,season} + f_{global,t}(weekofyear) + f_{l,t}(weekofyear) \\ #nolint
   # \beta_{l,season} \sim Normal(\beta_l, \sigma_{count}) \\
   # \beta_{l} \sim Normal(\beta_{global}, \sigma_{count}) \\
@@ -212,7 +212,12 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
   # \Sigma = \sigma \times C \times \sigma \\
   # \sigma \sim Beta(3,3) \\
   # C \sim LKJcorr(2) \\
-
+  prior_mode <- log(mean(model_data$obs_data, na.rm = TRUE))
+  message(
+    "Prior for intercept (avg prop ED visits due to flu): ",
+    exp(prior_mode)
+  )
+  message("Recommend using ", round(prior_mode, 2), " as prior")
 
   ar_mod <- mvgam(
     # Observation formula, empty to only consider the Gamma observation process
@@ -221,7 +226,7 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
     # Process model formula that includes regional intercepts
     trend_formula = ~
       # Hierarchical intercepts capture variation in average count
-      s(trend, bs = "re") +
+      s(trend, season, bs = "re") +
         # Hierarchical effects of year(shared smooth)
         # s(year, k = 3) +
         # # Borough level deviations
@@ -232,15 +237,14 @@ if (config$targets[index] == "ILI ED visits" && config$regions_to_fit[index] == 
         # Location level deviations
         s(week, k = 12, bs = "cc", by = trend) - 1,
     knots = list(week = c(1, 52)),
-    trend_model = "AR1",
+    trend_model = VAR(cor = TRUE),
     # Adjust the priors
     priors = c(
-      prior(normal(-4.5, 1),
+      prior(normal(-4.1, 1), # data based prior
         class = mu_raw_trend
       ),
       prior(exponential(0.33), class = sigma_raw_trend),
-      prior(exponential(1), class = sigma),
-      prior(normal(0.5, 0.25), class = ar1, lb = 0, ub = 1)
+      prior(beta(3, 3), class = sigma, lb = 0.2, ub = 1)
     ),
     data = model_data,
     newdata = forecast_data,

@@ -26,7 +26,7 @@ To produce forecasts each week we follow the following workflow:
 
 
 1. Modify the configuration file in `input/config.toml`
-2. In the command line, run ` Rscript preprocess_data.R input/config.toml {index}` where index is used to track the individual model runs, which in this case, also have different pre-processing due to being from different data sources. 
+2. In the command line, run ` Rscript preprocess_data.R input/config.toml {index}` where index is used to track the individual model runs, which in this case, also have different pre-processing due to being from different data sources.
 3. Next run ` Rscript models.R input/config.toml {index}`
 4. Lastly run `Rscript postprocess_forecasts.R input/{forecast_date}/config.toml`
 5. This will populate the `output/cityforecasts/{forecast_date}` folder with a csv file formatted following the Hub submission guidelines.
@@ -59,7 +59,7 @@ Initially, we will use only the weekly data, so $t$ will be indexed in weeks.
 
 ```math
 \begin{align}
-x_{l,t} \sim Normal(\mu_{l,t} + A X_{l,t-1},  \Sigma)\\
+x_{l,t} \sim Normal(\mu_{l,t} + A * (X_{l,t-1} - \mu_{l,t-1})),  \Sigma)\\
 \mu_{l,t} = \beta_{l,season} + f_{global,t}(weekofyear) + f_{l,t}(weekofyear) \\
 \beta_{l,season} \sim Normal(\beta_l, \sigma_{count}) \\
 \beta_{l} \sim Normal(\beta_{global}, \sigma_{count}) \\
